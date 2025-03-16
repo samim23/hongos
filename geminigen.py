@@ -4,6 +4,8 @@ import os
 import time
 import logging
 import subprocess
+import argparse
+import asyncio
 from io import BytesIO
 from PIL import Image
 from tqdm import tqdm
@@ -15,6 +17,8 @@ from datetime import datetime
 
 # Import voice generation module
 from voicegen import generate_voices_for_scenes
+# Import video generation module
+import videogen
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -291,7 +295,147 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir):
         log.error(f"Error creating video with MoviePy: {str(e)}")
         return None
 
-def main():
+async def generate_video_prompt(client, scene_info):
+    """Generate a prompt for video generation using LLM."""
+    prompt_template = f"""
+    Given this information, write a prompt for a "image+text to video" generation AI system. Keep the prompt very short and concise, as continuous text without heading etc. Focus on the action in the scene, camera, lightning:
+
+    "visual_description": "{scene_info['visual_description']}",
+    "caption": "{scene_info['caption']}", 
+    """
+    
+    try:
+        response = client.models.generate_content(
+            model="models/gemini-1.5-pro",
+            contents=prompt_template
+        )
+        
+        if response and hasattr(response, 'candidates') and response.candidates:
+            video_prompt = response.candidates[0].content.parts[0].text.strip()
+            log.info(f"Generated video prompt: {video_prompt}")
+            return video_prompt
+        else:
+            log.error("Failed to generate video prompt")
+            return f"Animate this scene: {scene_info['caption']}"
+    except Exception as e:
+        log.error(f"Error generating video prompt: {str(e)}")
+        return f"Animate this scene: {scene_info['caption']}"
+
+async def generate_videos_for_frames(client, scenes_info, output_dir):
+    """Generate videos for each frame using the FAL API."""
+    log.info("Starting video generation for each frame...")
+    
+    # Set FAL API key in environment
+    os.environ["FAL_KEY"] = FAL_KEY
+    
+    # Create videos directory
+    videos_dir = os.path.join(output_dir, "videos")
+    os.makedirs(videos_dir, exist_ok=True)
+    
+    # Track generated video paths
+    video_paths = []
+    
+    # Process each scene
+    for i, scene in enumerate(scenes_info):
+        if "image_path" not in scene:
+            log.warning(f"Scene {i+1} has no image path, skipping")
+            continue
+            
+        image_path = scene["image_path"]
+        
+        # Generate video prompt using LLM
+        video_prompt = await generate_video_prompt(client, scene)
+        
+        # Generate video
+        try:
+            log.info(f"Generating video for frame {i+1}...")
+            video_output_path = await videogen.generate_video(
+                image_path=image_path,
+                prompt=video_prompt,
+                output_dir=videos_dir,
+                aspect_ratio="16:9",
+                duration="5s",
+                use_upload=True
+            )
+            
+            # Add video path to scene info
+            scene["video_path"] = video_output_path
+            video_paths.append(video_output_path)
+            
+            log.info(f"Video generated for frame {i+1}: {video_output_path}")
+        except Exception as e:
+            log.error(f"Error generating video for frame {i+1}: {str(e)}")
+    
+    return video_paths
+
+def combine_generated_videos(video_paths, scenes_info, output_dir):
+    """Combine all generated videos into a single video with audio."""
+    log.info("Combining all generated videos...")
+    
+    try:
+        # Import MoviePy
+        from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, CompositeAudioClip
+        
+        # Output video path
+        final_video_path = os.path.join(output_dir, "final_animation.mp4")
+        
+        # Create clips for each video
+        clips = []
+        
+        for i, video_path in enumerate(video_paths):
+            if not os.path.exists(video_path):
+                log.warning(f"Video file not found: {video_path}, skipping")
+                continue
+                
+            # Load video clip
+            video_clip = VideoFileClip(video_path)
+            
+            # Check if we have audio for this scene
+            if i < len(scenes_info) and "audio_path" in scenes_info[i] and os.path.exists(scenes_info[i]["audio_path"]):
+                # Load audio
+                audio_clip = AudioFileClip(scenes_info[i]["audio_path"])
+                
+                # Set duration of video clip to match audio if audio is longer
+                if audio_clip.duration > video_clip.duration:
+                    video_clip = video_clip.set_duration(audio_clip.duration)
+                
+                # Set audio
+                video_clip = video_clip.set_audio(audio_clip)
+                
+                log.info(f"Added audio to video clip {i+1} (duration: {video_clip.duration:.2f}s)")
+            
+            clips.append(video_clip)
+            log.info(f"Added video clip {i+1} (duration: {video_clip.duration:.2f}s)")
+        
+        if clips:
+            # Concatenate all clips
+            final_clip = concatenate_videoclips(clips, method="compose")
+            
+            # Write output file
+            final_clip.write_videofile(
+                final_video_path,
+                fps=24,
+                codec="libx264",
+                audio_codec="aac",
+                temp_audiofile=os.path.join(output_dir, "temp_final_audio.m4a"),
+                remove_temp=True
+            )
+            
+            # Close clips to free resources
+            for clip in clips:
+                clip.close()
+            final_clip.close()
+            
+            log.info(f"Successfully created final video at {final_video_path}")
+            return final_video_path
+        else:
+            log.error("No video clips were created successfully")
+            return None
+    except Exception as e:
+        log.error(f"Error combining videos: {str(e)}")
+        return None
+
+async def async_main(generate_videos=False):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -410,12 +554,45 @@ def main():
         except Exception as e:
             log.error(f"Error creating video with audio: {str(e)}")
         
+        # Generate videos for each frame if requested
+        final_video_path = None
+        if generate_videos:
+            log.info("Video generation requested. Starting video generation process...")
+            try:
+                # Generate videos for each frame
+                video_paths = await generate_videos_for_frames(client, scenes_info, output_dir)
+                
+                # Save updated scenes data with video paths
+                with open(os.path.join(output_dir, "scenes_data_with_videos.json"), 'w') as f:
+                    json.dump(scenes_info, f, indent=2)
+                
+                # Combine all videos into a final video
+                if video_paths:
+                    final_video_path = combine_generated_videos(video_paths, scenes_info, output_dir)
+                    if final_video_path:
+                        log.info(f"Final animated video successfully saved to {final_video_path}")
+            except Exception as e:
+                log.error(f"Error in video generation process: {str(e)}")
+        
         print(f"\nOutput files saved to: {output_dir}")
         print(f"GIF animation: {gif_path}")
         if 'video_path' in locals() and video_path:
             print(f"Video with audio: {video_path}")
+        if final_video_path:
+            print(f"Final animated video: {final_video_path}")
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Generate animated TV ads with Gemini")
+    parser.add_argument("--generate-videos", action="store_true", 
+                        help="Generate animated videos for each frame (expensive and time-consuming)")
+    
+    args = parser.parse_args()
+    
+    # Run the async main function
+    asyncio.run(async_main(args.generate_videos))
 
 if __name__ == "__main__":
     main()
