@@ -207,196 +207,9 @@ def extract_scene_info(text):
     
     return scene_info
 
-def create_video_from_frames_and_audio(frame_paths, scenes_info, output_dir, fps=24, transition_duration=0.0):
+def create_video_with_audio(frame_paths, scenes_info, output_dir):
     """
-    Create a video from frames and audio files.
-    
-    Args:
-        frame_paths (list): List of paths to frame images
-        scenes_info (list): List of scene dictionaries with audio_path
-        output_dir (str): Directory to save the output video
-        fps (int): Frames per second for the video
-        transition_duration (float): Additional seconds to show each frame after audio ends (set to 0 for exact audio length)
-    
-    Returns:
-        str: Path to the output video file
-    """
-    log.info("Creating video from frames and audio...")
-    
-    # Output video path
-    video_path = os.path.join(output_dir, "animation.mp4")
-    
-    # Create a temporary directory for intermediate files
-    temp_dir = os.path.join(output_dir, "temp_video")
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    # Create a temporary script file for FFmpeg
-    script_path = os.path.join(temp_dir, "concat_script.txt")
-    
-    # Check if we have audio files
-    has_audio = any("audio_path" in scene and scene["audio_path"] for scene in scenes_info)
-    
-    if has_audio:
-        # Create individual video segments for each scene with its audio
-        segment_paths = []
-        
-        for i, (frame_path, scene) in enumerate(zip(frame_paths, scenes_info)):
-            if "audio_path" in scene and scene["audio_path"] and os.path.exists(scene["audio_path"]):
-                # Get audio duration
-                audio_duration_cmd = [
-                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1", scene["audio_path"]
-                ]
-                
-                try:
-                    audio_duration = float(subprocess.check_output(audio_duration_cmd).decode().strip())
-                    # Use exact audio duration (no transition)
-                    total_duration = audio_duration
-                except Exception as e:
-                    log.warning(f"Could not get audio duration: {str(e)}. Using default duration.")
-                    total_duration = 5.0  # Default duration if audio duration can't be determined
-                
-                # Create a video segment from the frame and audio
-                segment_path = os.path.join(temp_dir, f"segment_{i:03d}.mp4")
-                
-                # Create video from image with the exact duration of the audio
-                segment_cmd = [
-                    "ffmpeg", "-y", 
-                    "-loop", "1", 
-                    "-i", frame_path,
-                    "-i", scene["audio_path"], 
-                    "-c:v", "libx264", 
-                    "-tune", "stillimage",
-                    "-c:a", "aac", 
-                    "-b:a", "192k", 
-                    "-pix_fmt", "yuv420p",
-                    "-t", str(total_duration),  # Exact audio duration
-                    "-shortest",  # Ensure video is exactly as long as audio
-                    segment_path
-                ]
-                
-                try:
-                    subprocess.run(segment_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    segment_paths.append(segment_path)
-                    log.info(f"Created video segment {i+1} with audio")
-                except subprocess.CalledProcessError as e:
-                    log.error(f"Error creating video segment {i+1}: {str(e)}")
-                    # Try with a simpler command as fallback
-                    fallback_cmd = [
-                        "ffmpeg", "-y", 
-                        "-loop", "1", 
-                        "-i", frame_path,
-                        "-i", scene["audio_path"], 
-                        "-c:v", "libx264", 
-                        "-c:a", "aac", 
-                        "-pix_fmt", "yuv420p",
-                        "-shortest",  # Ensure video is exactly as long as audio
-                        segment_path
-                    ]
-                    
-                    try:
-                        subprocess.run(fallback_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        segment_paths.append(segment_path)
-                        log.info(f"Created video segment {i+1} with audio (fallback method)")
-                    except subprocess.CalledProcessError as e2:
-                        log.error(f"Fallback also failed for segment {i+1}: {str(e2)}")
-            else:
-                # No audio for this frame, create a silent segment
-                segment_path = os.path.join(temp_dir, f"segment_{i:03d}.mp4")
-                
-                # Default duration for frames without audio
-                total_duration = 3.0
-                
-                # Create video from image with default duration
-                segment_cmd = [
-                    "ffmpeg", "-y", 
-                    "-loop", "1", 
-                    "-i", frame_path,
-                    "-c:v", "libx264", 
-                    "-tune", "stillimage",
-                    "-pix_fmt", "yuv420p", 
-                    "-t", str(total_duration), 
-                    segment_path
-                ]
-                
-                try:
-                    subprocess.run(segment_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    segment_paths.append(segment_path)
-                    log.info(f"Created video segment {i+1} without audio")
-                except subprocess.CalledProcessError as e:
-                    log.error(f"Error creating video segment {i+1}: {str(e)}")
-        
-        # Create a concat file for FFmpeg
-        with open(script_path, 'w') as f:
-            for segment_path in segment_paths:
-                f.write(f"file '{segment_path}'\n")
-        
-        # Concatenate all segments into the final video
-        concat_cmd = [
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-            "-i", script_path, "-c", "copy", video_path
-        ]
-        
-        try:
-            subprocess.run(concat_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            log.info(f"Successfully created video with audio at {video_path}")
-        except subprocess.CalledProcessError as e:
-            log.error(f"Error concatenating video segments: {str(e)}")
-            # Try a different approach if concatenation fails
-            try:
-                # Create a complex filter for precise concatenation
-                filter_parts = []
-                for i in range(len(segment_paths)):
-                    filter_parts.append(f"[{i}:v][{i}:a]")
-                
-                filter_complex = "".join(filter_parts) + f"concat=n={len(segment_paths)}:v=1:a=1[outv][outa]"
-                
-                # Build input arguments
-                inputs = []
-                for path in segment_paths:
-                    inputs.extend(["-i", path])
-                
-                direct_concat_cmd = [
-                    "ffmpeg", "-y"
-                ] + inputs + [
-                    "-filter_complex", filter_complex,
-                    "-map", "[outv]", "-map", "[outa]",
-                    video_path
-                ]
-                
-                subprocess.run(direct_concat_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                log.info(f"Successfully created video with audio using alternative method at {video_path}")
-            except subprocess.CalledProcessError as e2:
-                log.error(f"Error with alternative concatenation: {str(e2)}")
-    else:
-        # No audio files, create a simple slideshow
-        log.info("No audio files found. Creating a simple slideshow...")
-        
-        # Create a video from all frames
-        slideshow_cmd = [
-            "ffmpeg", "-y", "-framerate", str(fps/10), "-pattern_type", "glob",
-            "-i", os.path.join(output_dir, "frame_*.png"),
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", video_path
-        ]
-        
-        try:
-            subprocess.run(slideshow_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            log.info(f"Successfully created slideshow video at {video_path}")
-        except subprocess.CalledProcessError as e:
-            log.error(f"Error creating slideshow video: {str(e)}")
-    
-    # Clean up temporary files
-    try:
-        import shutil
-        shutil.rmtree(temp_dir)
-    except Exception as e:
-        log.warning(f"Could not clean up temporary files: {str(e)}")
-    
-    return video_path
-
-def create_reliable_video(frame_paths, scenes_info, output_dir):
-    """
-    Create a video from frames and audio files using a more reliable approach.
+    Create a video from frames and audio files using MoviePy.
     
     Args:
         frame_paths (list): List of paths to frame images
@@ -406,130 +219,76 @@ def create_reliable_video(frame_paths, scenes_info, output_dir):
     Returns:
         str: Path to the output video file
     """
-    log.info("Creating video from frames and audio (reliable method)...")
-    
-    # Output video path
-    video_path = os.path.join(output_dir, "animation.mp4")
-    
-    # Create a temporary directory for intermediate files
-    temp_dir = os.path.join(output_dir, "temp_video")
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    # First, create a silent video from all frames
-    silent_video = os.path.join(temp_dir, "silent.mp4")
-    
-    # Create a list of input files for the silent video
-    inputs = []
-    for frame_path in frame_paths:
-        # Each frame shows for 3 seconds
-        inputs.extend(["-loop", "1", "-t", "3", "-i", frame_path])
-    
-    # Create filter complex for concatenation
-    filter_parts = []
-    for i in range(len(frame_paths)):
-        filter_parts.append(f"[{i}:v]")
-    
-    filter_complex = "".join(filter_parts) + f"concat=n={len(frame_paths)}:v=1:a=0[outv]"
-    
-    # Create the silent video
-    silent_cmd = [
-        "ffmpeg", "-y"
-    ] + inputs + [
-        "-filter_complex", filter_complex,
-        "-map", "[outv]",
-        "-pix_fmt", "yuv420p",
-        silent_video
-    ]
+    log.info("Creating video from frames and audio using MoviePy...")
     
     try:
-        log.info("Creating silent base video...")
-        subprocess.run(silent_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        log.info("Silent video created successfully")
-    except subprocess.CalledProcessError as e:
-        log.error(f"Error creating silent video: {str(e)}")
-        raise
-    
-    # Now, create a file with all audio tracks
-    audio_files = []
-    for scene in scenes_info:
-        if "audio_path" in scene and scene["audio_path"] and os.path.exists(scene["audio_path"]):
-            audio_files.append(scene["audio_path"])
-    
-    if audio_files:
-        # Create a combined audio file
-        combined_audio = os.path.join(temp_dir, "combined_audio.mp3")
+        # Import MoviePy
+        from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
         
-        # Create inputs for audio concatenation
-        audio_inputs = []
-        for audio_file in audio_files:
-            audio_inputs.extend(["-i", audio_file])
+        # Output video path
+        video_path = os.path.join(output_dir, "animation.mp4")
         
-        # Create filter complex for audio concatenation
-        audio_filter_parts = []
-        for i in range(len(audio_files)):
-            audio_filter_parts.append(f"[{i}:a]")
+        # Create clips for each frame with its audio
+        clips = []
         
-        audio_filter_complex = "".join(audio_filter_parts) + f"concat=n={len(audio_files)}:v=0:a=1[outa]"
-        
-        # Create the combined audio
-        audio_cmd = [
-            "ffmpeg", "-y"
-        ] + audio_inputs + [
-            "-filter_complex", audio_filter_complex,
-            "-map", "[outa]",
-            combined_audio
-        ]
-        
-        try:
-            log.info("Creating combined audio...")
-            subprocess.run(audio_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            log.info("Combined audio created successfully")
-        except subprocess.CalledProcessError as e:
-            log.error(f"Error creating combined audio: {str(e)}")
-            # If we can't combine audio, try a different approach
-            combined_audio = None
-        
-        # Now combine the silent video with the audio
-        if combined_audio:
-            final_cmd = [
-                "ffmpeg", "-y",
-                "-i", silent_video,
-                "-i", combined_audio,
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-shortest",  # Make the output as long as the shortest input
-                video_path
-            ]
+        for i, scene in enumerate(scenes_info):
+            if i >= len(frame_paths):
+                continue  # Skip if we don't have a frame for this scene
+                
+            frame_path = frame_paths[i]
             
-            try:
-                log.info("Combining video and audio...")
-                subprocess.run(final_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                log.info("Final video created successfully")
-            except subprocess.CalledProcessError as e:
-                log.error(f"Error creating final video: {str(e)}")
-                # If combining fails, just use the silent video
-                import shutil
-                shutil.copy(silent_video, video_path)
-                log.info("Using silent video as fallback")
+            # Check if we have audio for this scene
+            audio_path = scene.get("audio_path", None)
+            
+            if audio_path and os.path.exists(audio_path):
+                # Create image clip
+                image_clip = ImageClip(frame_path)
+                
+                # Load audio
+                audio_clip = AudioFileClip(audio_path)
+                
+                # Set duration of image clip to match audio
+                image_clip = image_clip.set_duration(audio_clip.duration)
+                
+                # Set audio
+                image_clip = image_clip.set_audio(audio_clip)
+                
+                clips.append(image_clip)
+                log.info(f"Created clip {i+1} with audio (duration: {audio_clip.duration:.2f}s)")
+            else:
+                # No audio, create a silent clip
+                image_clip = ImageClip(frame_path).set_duration(3)  # 3 seconds default
+                clips.append(image_clip)
+                log.info(f"Created clip {i+1} without audio (duration: 3.00s)")
+        
+        if clips:
+            # Concatenate all clips
+            final_clip = concatenate_videoclips(clips, method="compose")
+            
+            # Write output file
+            final_clip.write_videofile(
+                video_path,
+                fps=24,
+                codec="libx264",
+                audio_codec="aac",
+                temp_audiofile=os.path.join(output_dir, "temp_audio.m4a"),
+                remove_temp=True
+            )
+            
+            # Close clips to free resources
+            for clip in clips:
+                clip.close()
+            final_clip.close()
+            
+            log.info(f"Successfully created video with audio at {video_path}")
         else:
-            # If we couldn't create combined audio, just use the silent video
-            import shutil
-            shutil.copy(silent_video, video_path)
-            log.info("Using silent video (no audio files found)")
-    else:
-        # No audio files, just use the silent video
-        import shutil
-        shutil.copy(silent_video, video_path)
-        log.info("Using silent video (no audio files found)")
-    
-    # Clean up temporary files
-    try:
-        import shutil
-        shutil.rmtree(temp_dir)
+            log.error("No clips were created successfully")
+            return None
+        
+        return video_path
     except Exception as e:
-        log.warning(f"Could not clean up temporary files: {str(e)}")
-    
-    return video_path
+        log.error(f"Error creating video with MoviePy: {str(e)}")
+        return None
 
 def main():
     # Create timestamped output directory
@@ -638,132 +397,22 @@ def main():
                 loop=0
             )
             
-            log.info(f"Animation successfully saved to {gif_path} (PIL method)")
+            log.info(f"Animation successfully saved to {gif_path}")
         except Exception as e:
             log.error(f"Error creating GIF with PIL: {str(e)}")
         
-        # Create MP4 video with audio
+        # Create MP4 video with audio - using MoviePy
         try:
-            # Create a more robust video from frames
-            video_path = os.path.join(output_dir, "animation.mp4")
-            
-            # Create a temporary directory for intermediate files
-            temp_dir = os.path.join(output_dir, "temp_video")
-            os.makedirs(temp_dir, exist_ok=True)
-            
-            # First create a silent video with proper parameters
-            silent_video = os.path.join(temp_dir, "silent.mp4")
-            
-            # Create a list file for ffmpeg
-            list_file = os.path.join(temp_dir, "frames.txt")
-            with open(list_file, 'w') as f:
-                for i, frame_path in enumerate(frame_paths):
-                    # Each frame lasts 3 seconds
-                    f.write(f"file '{frame_path}'\n")
-                    f.write(f"duration 3\n")
-                # Write the last frame again (required by ffmpeg)
-                f.write(f"file '{frame_paths[-1]}'\n")
-            
-            # Create silent video
-            silent_cmd = [
-                "ffmpeg", "-y", 
-                "-f", "concat", 
-                "-safe", "0", 
-                "-i", list_file,
-                "-vsync", "vfr",
-                "-pix_fmt", "yuv420p",
-                "-c:v", "libx264",
-                silent_video
-            ]
-            
-            try:
-                subprocess.run(silent_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                log.info(f"Silent video created at {silent_video}")
-            except subprocess.CalledProcessError as e:
-                log.error(f"Error creating silent video: {str(e)}")
-                # Try alternative method
-                alt_silent_cmd = [
-                    "ffmpeg", "-y",
-                    "-framerate", "1/3",  # One frame every 3 seconds
-                    "-pattern_type", "glob",
-                    "-i", os.path.join(output_dir, "frame_*.png"),
-                    "-c:v", "libx264",
-                    "-pix_fmt", "yuv420p",
-                    silent_video
-                ]
-                
-                subprocess.run(alt_silent_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                log.info(f"Silent video created at {silent_video} (alternative method)")
-            
-            # If we have audio files, create a version with audio
-            audio_files = []
-            for scene in scenes_info:
-                if "audio_path" in scene and scene["audio_path"] and os.path.exists(scene["audio_path"]):
-                    audio_files.append(scene["audio_path"])
-            
-            if audio_files:
-                # Create a combined audio file
-                combined_audio = os.path.join(temp_dir, "combined_audio.mp3")
-                
-                # Concatenate audio files
-                audio_inputs = []
-                for audio_file in audio_files:
-                    audio_inputs.extend(["-i", audio_file])
-                
-                audio_filter = f"concat=n={len(audio_files)}:v=0:a=1[outa]"
-                
-                audio_cmd = [
-                    "ffmpeg", "-y"
-                ] + audio_inputs + [
-                    "-filter_complex", audio_filter,
-                    "-map", "[outa]",
-                    combined_audio
-                ]
-                
-                try:
-                    subprocess.run(audio_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    log.info(f"Combined audio created at {combined_audio}")
-                    
-                    # Add audio to video
-                    final_cmd = [
-                        "ffmpeg", "-y",
-                        "-i", silent_video,
-                        "-i", combined_audio,
-                        "-c:v", "copy",
-                        "-c:a", "aac",
-                        "-shortest",
-                        video_path
-                    ]
-                    
-                    subprocess.run(final_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    log.info(f"Video with audio created at {video_path}")
-                except subprocess.CalledProcessError as e:
-                    log.error(f"Error adding audio to video: {str(e)}")
-                    # Use silent video as fallback
-                    import shutil
-                    shutil.copy(silent_video, video_path)
-                    log.info(f"Using silent video as fallback")
-            else:
-                # No audio files, just use the silent video
-                import shutil
-                shutil.copy(silent_video, video_path)
-                log.info(f"Using silent video (no audio files found)")
-            
-            # Clean up temporary files
-            try:
-                import shutil
-                shutil.rmtree(temp_dir)
-            except Exception as e:
-                log.warning(f"Could not clean up temporary files: {str(e)}")
-            
-            log.info(f"Video successfully saved to {video_path}")
+            video_path = create_video_with_audio(frame_paths, scenes_info, output_dir)
+            if video_path:
+                log.info(f"Video with audio successfully saved to {video_path}")
         except Exception as e:
-            log.error(f"Error creating video: {str(e)}")
+            log.error(f"Error creating video with audio: {str(e)}")
         
         print(f"\nOutput files saved to: {output_dir}")
         print(f"GIF animation: {gif_path}")
-        if 'video_path' in locals():
-            print(f"Video: {video_path}")
+        if 'video_path' in locals() and video_path:
+            print(f"Video with audio: {video_path}")
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
 
