@@ -583,16 +583,85 @@ async def async_main(generate_videos=False):
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
 
+async def process_existing_folder(folder_path):
+    """Process an existing output folder to generate videos."""
+    log.info(f"Processing existing folder: {folder_path}")
+    
+    # Check if the folder exists
+    if not os.path.exists(folder_path):
+        log.error(f"Folder not found: {folder_path}")
+        return
+    
+    # Check for required files
+    scenes_data_path = os.path.join(folder_path, "scenes_data.json")
+    if not os.path.exists(scenes_data_path):
+        log.error(f"scenes_data.json not found in {folder_path}")
+        return
+    
+    # Load scenes data
+    try:
+        with open(scenes_data_path, 'r') as f:
+            scenes_info = json.load(f)
+        log.info(f"Loaded scene information from {scenes_data_path}")
+    except Exception as e:
+        log.error(f"Error loading scenes data: {str(e)}")
+        return
+    
+    # Initialize client
+    client = initialize_client(GEMINI_API_KEY)
+    
+    # Set FAL API key in environment
+    os.environ["FAL_KEY"] = FAL_KEY
+    
+    # Verify frame images exist and add them to scenes_info if needed
+    for i, scene in enumerate(scenes_info):
+        if "image_path" not in scene:
+            # Try to find the corresponding frame
+            frame_path = os.path.join(folder_path, f"frame_{i:03d}.png")
+            if os.path.exists(frame_path):
+                scene["image_path"] = frame_path
+                log.info(f"Added image path to scene {i+1}: {frame_path}")
+            else:
+                log.warning(f"Frame image not found for scene {i+1}: {frame_path}")
+    
+    # Generate videos for each frame
+    try:
+        log.info("Starting video generation for existing frames...")
+        video_paths = await generate_videos_for_frames(client, scenes_info, folder_path)
+        
+        # Save updated scenes data with video paths
+        with open(os.path.join(folder_path, "scenes_data_with_videos.json"), 'w') as f:
+            json.dump(scenes_info, f, indent=2)
+        
+        # Combine all videos into a final video
+        if video_paths:
+            final_video_path = combine_generated_videos(video_paths, scenes_info, folder_path)
+            if final_video_path:
+                log.info(f"Final animated video successfully saved to {final_video_path}")
+                print(f"\nFinal animated video: {final_video_path}")
+            else:
+                log.error("Failed to create final video")
+        else:
+            log.error("No videos were generated successfully")
+    except Exception as e:
+        log.error(f"Error in video generation process: {str(e)}")
+
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Generate animated TV ads with Gemini")
     parser.add_argument("--generate-videos", action="store_true", 
                         help="Generate animated videos for each frame (expensive and time-consuming)")
+    parser.add_argument("--process-folder", type=str, 
+                        help="Process an existing output folder to generate videos")
     
     args = parser.parse_args()
     
-    # Run the async main function
-    asyncio.run(async_main(args.generate_videos))
+    if args.process_folder:
+        # Process existing folder
+        asyncio.run(process_existing_folder(args.process_folder))
+    else:
+        # Run the normal flow
+        asyncio.run(async_main(args.generate_videos))
 
 if __name__ == "__main__":
     main()
