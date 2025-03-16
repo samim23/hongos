@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 # API keys
 GEMINI_API_KEY = "AIzaSyC7ddAPsaxtDv-Yisu_w4iNrLtSgmrpqpo"  # Replace with your API key
 ELEVENLABS_API_KEY = "sk_5067d1b46bdf4b8acf00671004da5d8796ba8bf2dff6b287"  # Replace with your ElevenLabs API key
+FAL_KEY = "2f556b63-6b7e-4dd9-a6d7-6d708f2b5197:920e87577feda752aec2014358b8c25c" # Replace with your FAL API key
 
 def initialize_client(api_key):
     """Initialize the Gemini client."""
