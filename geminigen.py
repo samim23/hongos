@@ -613,16 +613,29 @@ async def process_existing_folder(folder_path):
     # Set FAL API key in environment
     os.environ["FAL_KEY"] = FAL_KEY
     
-    # Verify frame images exist and add them to scenes_info if needed
-    for i, scene in enumerate(scenes_info):
-        if "image_path" not in scene:
-            # Try to find the corresponding frame
-            frame_path = os.path.join(folder_path, f"frame_{i:03d}.png")
-            if os.path.exists(frame_path):
-                scene["image_path"] = frame_path
-                log.info(f"Added image path to scene {i+1}: {frame_path}")
-            else:
-                log.warning(f"Frame image not found for scene {i+1}: {frame_path}")
+    # Find all frame files in the folder
+    frame_files = sorted([f for f in os.listdir(folder_path) if f.startswith("frame_") and f.endswith(".png")])
+    log.info(f"Found {len(frame_files)} frame files in folder")
+    
+    # Make sure scenes_info has entries for all frames
+    if len(frame_files) > len(scenes_info):
+        log.warning(f"Found more frames ({len(frame_files)}) than scenes in JSON ({len(scenes_info)})")
+        # Add missing scenes
+        for i in range(len(scenes_info), len(frame_files)):
+            scenes_info.append({
+                "scene_number": i + 1,
+                "visual_description": f"Scene {i + 1}",
+                "caption": f"Scene {i + 1}",
+                "speaker": "Narrator",
+                "frame_number": i
+            })
+    
+    # Update image paths for all scenes
+    for i, frame_file in enumerate(frame_files):
+        frame_path = os.path.join(folder_path, frame_file)
+        if i < len(scenes_info):
+            scenes_info[i]["image_path"] = frame_path
+            log.info(f"Set image path for scene {i+1}: {frame_path}")
     
     # Generate videos for each frame
     try:
