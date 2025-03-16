@@ -121,13 +121,21 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
     audio_dir = os.path.join(output_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
     
+    # Log the total number of scenes
+    log.info(f"Generating audio for {len(scenes_data)} scenes")
+    
     # Process each scene
     for i, scene in enumerate(scenes_data):
+        log.info(f"Processing scene {i}: {scene.get('caption', 'No caption')[:30]}...")
+        
         if "caption" in scene and scene["caption"]:
-            # Generate filename
-            scene_num = scene.get("scene_number", i+1)
-            audio_filename = f"scene_{scene_num:03d}_audio.mp3"
+            # Always use the loop index as the frame number (0-based)
+            frame_num = i
+            audio_filename = f"frame_{frame_num:03d}_audio.mp3"
             audio_path = os.path.join(audio_dir, audio_filename)
+            
+            # Log the file being created
+            log.info(f"Generating audio for frame {frame_num}: {audio_filename}")
             
             # Generate audio
             result_path = generate_voice_for_caption(
@@ -137,9 +145,47 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
                 api_key=api_key
             )
             
-            # Update scene data with audio path
+            # Update scene data with audio path and ensure frame_number is set
             if result_path:
                 scene["audio_path"] = result_path
+                scene["frame_number"] = frame_num  # Ensure frame_number is set correctly
+                log.info(f"Successfully generated audio for frame {frame_num}")
+            else:
+                log.warning(f"Failed to generate audio for frame {frame_num}")
+        else:
+            log.warning(f"No caption found for scene {i}, skipping audio generation")
+    
+    # Verify all frames have audio
+    frame_count = max([scene.get("frame_number", i) for i, scene in enumerate(scenes_data)]) + 1
+    log.info(f"Expected {frame_count} audio files")
+    
+    # Check if all expected audio files exist
+    missing_audio = []
+    for i in range(frame_count):
+        audio_path = os.path.join(audio_dir, f"frame_{i:03d}_audio.mp3")
+        if not os.path.exists(audio_path):
+            missing_audio.append(i)
+            
+            # Try to generate audio for missing frames
+            for scene in scenes_data:
+                if scene.get("frame_number") == i and "caption" in scene and scene["caption"]:
+                    log.warning(f"Attempting to regenerate missing audio for frame {i}")
+                    audio_path = os.path.join(audio_dir, f"frame_{i:03d}_audio.mp3")
+                    result_path = generate_voice_for_caption(
+                        caption=scene["caption"],
+                        speaker=scene.get("speaker", "Narrator"),
+                        output_path=audio_path,
+                        api_key=api_key
+                    )
+                    if result_path:
+                        scene["audio_path"] = result_path
+                        log.info(f"Successfully regenerated audio for frame {i}")
+                    break
+    
+    if missing_audio:
+        log.warning(f"Missing audio for frames: {missing_audio}")
+    else:
+        log.info("All frames have audio files")
     
     return scenes_data
 

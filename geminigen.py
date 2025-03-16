@@ -122,7 +122,7 @@ def extract_scene_info_with_llm(client, text_parts, output_dir):
     4. Speaker (infer who would be speaking the caption based on the scene description)
 
     For the speaker field, provide details like gender, age, character type, or emotional state.
-    Examples: "Character 1 (man, nervous)", "Narrator (female, authoritative)", "Mushroom mascot (cheerful)"
+    Examples: "Character 1 (man, nervous)", "Narrator (female, authoritative)", "Mascot (cheerful)"
 
     Format the output as a JSON array where each object has the structure:
     {{
@@ -236,19 +236,33 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir):
         # Create clips for each frame with its audio
         clips = []
         
-        for i, scene in enumerate(scenes_info):
-            if i >= len(frame_paths):
-                continue  # Skip if we don't have a frame for this scene
-                
-            frame_path = frame_paths[i]
+        for i, frame_path in enumerate(frame_paths):
+            # Find the corresponding scene info
+            scene = None
+            for s in scenes_info:
+                # Match by frame_number if available
+                if "frame_number" in s and s["frame_number"] == i:
+                    scene = s
+                    break
+                # Match by image_path if available
+                elif "image_path" in s and os.path.basename(s["image_path"]) == os.path.basename(frame_path):
+                    scene = s
+                    break
+            
+            # If no matching scene found, use the scene at the same index if available
+            if scene is None and i < len(scenes_info):
+                scene = scenes_info[i]
+                log.warning(f"No exact match found for frame {i}, using scene at index {i}")
+            
+            # Create image clip
+            image_clip = ImageClip(frame_path)
             
             # Check if we have audio for this scene
-            audio_path = scene.get("audio_path", None)
+            audio_path = None
+            if scene and "audio_path" in scene and os.path.exists(scene["audio_path"]):
+                audio_path = scene["audio_path"]
             
-            if audio_path and os.path.exists(audio_path):
-                # Create image clip
-                image_clip = ImageClip(frame_path)
-                
+            if audio_path:
                 # Load audio
                 audio_clip = AudioFileClip(audio_path)
                 
@@ -262,7 +276,7 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir):
                 log.info(f"Created clip {i+1} with audio (duration: {audio_clip.duration:.2f}s)")
             else:
                 # No audio, create a silent clip
-                image_clip = ImageClip(frame_path).set_duration(3)  # 3 seconds default
+                image_clip = image_clip.set_duration(3)  # 3 seconds default
                 clips.append(image_clip)
                 log.info(f"Created clip {i+1} without audio (duration: 3.00s)")
         
@@ -449,13 +463,13 @@ async def async_main(generate_videos=False):
     # Define prompt with enhanced instructions for character information
     prompt = """GENERATE (do not describe) a sequence of 5-8 actual images.
     Each image should be a frame in a TV ad for a mushroom supplement company.
-    Make it ULTRA FUNNY and absurd in a Wes Anderson style.
+    Make it ULTRA FUNNY and absurd in a Pedro Almodóvar style.
     Each generated image should be a different scene.
     
     IMPORTANT: For each image, please provide:
     1. SCENE X: (where X is the scene number)
     2. A detailed visual description of what's in the image
-    3. A caption in Wes Anderson style
+    3. A caption that fits the scene
     Please return actual generated images, not just text descriptions."""
     
     try:
@@ -501,14 +515,14 @@ async def async_main(generate_videos=False):
                     # Try to find corresponding text for this image
                     scene_info = extract_scene_info(text_parts[i] if i < len(text_parts) else "")
                     scene_info["image_path"] = frame_path
-                    scene_info["frame_number"] = i
+                    scene_info["frame_number"] = i  # Explicitly set 0-based frame number
                     scenes_info.append(scene_info)
             else:
                 # Add image paths to the LLM-extracted scene info
                 for i, scene_info in enumerate(scenes_info):
                     if i < len(frame_paths):
                         scene_info["image_path"] = frame_paths[i]
-                        scene_info["frame_number"] = i
+                        scene_info["frame_number"] = i  # Explicitly set 0-based frame number
             
             # Generate voice for each scene
             log.info("Generating voice audio for scenes...")
@@ -617,6 +631,13 @@ async def process_existing_folder(folder_path):
     frame_files = sorted([f for f in os.listdir(folder_path) if f.startswith("frame_") and f.endswith(".png")])
     log.info(f"Found {len(frame_files)} frame files in folder")
     
+    # Find all audio files in the folder
+    audio_dir = os.path.join(folder_path, "audio")
+    audio_files = []
+    if os.path.exists(audio_dir):
+        audio_files = sorted([f for f in os.listdir(audio_dir) if f.endswith(".mp3")])
+        log.info(f"Found {len(audio_files)} audio files in folder")
+    
     # Make sure scenes_info has entries for all frames
     if len(frame_files) > len(scenes_info):
         log.warning(f"Found more frames ({len(frame_files)}) than scenes in JSON ({len(scenes_info)})")
@@ -630,12 +651,38 @@ async def process_existing_folder(folder_path):
                 "frame_number": i
             })
     
-    # Update image paths for all scenes
+    # Update image paths and audio paths for all scenes
     for i, frame_file in enumerate(frame_files):
         frame_path = os.path.join(folder_path, frame_file)
         if i < len(scenes_info):
+            # Update image path
             scenes_info[i]["image_path"] = frame_path
             log.info(f"Set image path for scene {i+1}: {frame_path}")
+            
+            # Try to find matching audio file
+            # First check if audio_path already exists and is valid
+            if "audio_path" in scenes_info[i] and os.path.exists(scenes_info[i]["audio_path"]):
+                log.info(f"Using existing audio path for scene {i+1}: {scenes_info[i]['audio_path']}")
+            else:
+                # Try to find by frame number (0-based) first
+                frame_num = i
+                audio_pattern = f"frame_{frame_num:03d}_audio.mp3"
+                audio_path = os.path.join(audio_dir, audio_pattern)
+                
+                if os.path.exists(audio_path):
+                    scenes_info[i]["audio_path"] = audio_path
+                    log.info(f"Found audio for frame {frame_num}: {audio_path}")
+                else:
+                    # Try to find audio file by scene number (1-based) as fallback
+                    scene_num = i + 1
+                    audio_pattern = f"scene_{scene_num:03d}_audio.mp3"
+                    audio_path = os.path.join(audio_dir, audio_pattern)
+                    
+                    if os.path.exists(audio_path):
+                        scenes_info[i]["audio_path"] = audio_path
+                        log.info(f"Found audio for scene {scene_num}: {audio_path}")
+                    else:
+                        log.warning(f"No audio found for frame {frame_num} / scene {scene_num}")
     
     # Generate videos for each frame
     try:
