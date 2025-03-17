@@ -7,6 +7,7 @@ import logging
 import json
 from elevenlabs.client import ElevenLabs
 from elevenlabs import VoiceSettings
+import re
 
 load_dotenv()
 
@@ -14,25 +15,45 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
-# API key - replace with your actual key
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "your-elevenlabs-api-key")
+# API key from environment variable
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
-def initialize_voice_client(api_key=None):
+def initialize_voice_client():
     """Initialize the ElevenLabs client with API key."""
     try:
-        api_key_to_use = api_key if api_key else ELEVENLABS_API_KEY
-        if not api_key_to_use:
-            log.error("No ElevenLabs API key provided")
+        if not ELEVENLABS_API_KEY:
+            log.error("No ElevenLabs API key provided in environment variables")
             return False
         
         # Create client
-        client = ElevenLabs(api_key=api_key_to_use)
+        client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
         return client
     except Exception as e:
         log.error(f"Error initializing ElevenLabs client: {str(e)}")
         return False
 
-def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6obpgDQGcFmaJgB", api_key=None):
+def clean_caption_text(caption):
+    """
+    Remove special characters from caption text that might cause issues with the API.
+    
+    Args:
+        caption (str): The original caption text
+        
+    Returns:
+        str: Cleaned caption text
+    """
+    if not caption:
+        return caption
+        
+    # Remove special characters like *, _, ~, etc.
+    cleaned_text = re.sub(r'[*_~`#\[\]<>]', '', caption)
+    
+    # Replace multiple spaces with a single space
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
+    
+    return cleaned_text.strip()
+
+def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6obpgDQGcFmaJgB"):
     """
     Generate audio for a caption using ElevenLabs API.
     
@@ -41,7 +62,6 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
         speaker (str): Description of the speaker (used for voice selection)
         output_path (str): Path to save the audio file
         voice_id (str): ElevenLabs voice ID to use
-        api_key (str, optional): ElevenLabs API key
     
     Returns:
         str: Path to the generated audio file or None if failed
@@ -52,9 +72,14 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
     
     try:
         # Initialize client
-        client = initialize_voice_client(api_key)
+        client = initialize_voice_client()
         if not client:
             return None
+        
+        # Clean the caption text to remove special characters
+        cleaned_caption = clean_caption_text(caption)
+        log.info(f"Original caption: {caption[:50]}...")
+        log.info(f"Cleaned caption: {cleaned_caption[:50]}...")
         
         # Configure voice settings based on speaker description
         stability = 0.5
@@ -75,14 +100,14 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
                 similarity_boost = 0.7
         
         # Generate audio
-        log.info(f"Generating audio for caption: {caption[:50]}...")
+        log.info(f"Generating audio for caption: {cleaned_caption[:50]}...")
         
         # Generate audio using the ElevenLabs client
         response = client.text_to_speech.convert(
             voice_id=voice_id,
             optimize_streaming_latency="0",
             output_format="mp3_44100_128",
-            text=caption,
+            text=cleaned_caption,
             model_id="eleven_monolingual_v1",
             voice_settings=VoiceSettings(
                 stability=stability,
@@ -105,14 +130,13 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
         log.error(f"Error generating voice: {str(e)}")
         return None
 
-def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
+def generate_voices_for_scenes(scenes_data, output_dir):
     """
     Generate voice files for all scenes in the data.
     
     Args:
         scenes_data (list): List of scene dictionaries
         output_dir (str): Directory to save audio files
-        api_key (str, optional): ElevenLabs API key
     
     Returns:
         list: Updated scenes data with audio paths
@@ -158,8 +182,7 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
             result_path = generate_voice_for_caption(
                 caption=scene["caption"],
                 speaker=scene.get("speaker", "Narrator"),
-                output_path=audio_path,
-                api_key=api_key
+                output_path=audio_path
             )
             
             # Update scene data with audio path
@@ -190,8 +213,7 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
                     result_path = generate_voice_for_caption(
                         caption=scene["caption"],
                         speaker=scene.get("speaker", "Narrator"),
-                        output_path=audio_path,
-                        api_key=api_key
+                        output_path=audio_path
                     )
                     if result_path:
                         scene["audio_path"] = result_path

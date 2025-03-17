@@ -14,6 +14,7 @@ from google.genai import types
 import json
 import re
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Import voice generation module
 from voicegen import generate_voices_for_scenes
@@ -24,16 +25,45 @@ import videogen
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
-# API keys
-GEMINI_API_KEY = "AIzaSyC7ddAPsaxtDv-Yisu_w4iNrLtSgmrpqpo"  # Replace with your API key
-ELEVENLABS_API_KEY = "sk_5067d1b46bdf4b8acf00671004da5d8796ba8bf2dff6b287"  # Replace with your ElevenLabs API key
-FAL_KEY = "2f556b63-6b7e-4dd9-a6d7-6d708f2b5197:920e87577feda752aec2014358b8c25c" # Replace with your FAL API key
+# Load environment variables
+load_dotenv()
+
+# API keys from environment variables
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+FAL_KEY = os.getenv("FAL_KEY")
+
+def check_environment_variables():
+    """Check if all required environment variables are set."""
+    missing_vars = []
+    
+    if not GEMINI_API_KEY:
+        missing_vars.append("GEMINI_API_KEY")
+    
+    if not ELEVENLABS_API_KEY:
+        missing_vars.append("ELEVENLABS_API_KEY")
+    
+    if not FAL_KEY:
+        missing_vars.append("FAL_KEY")
+    
+    if missing_vars:
+        error_message = "Missing required environment variables:\n"
+        for var in missing_vars:
+            error_message += f"  - {var}\n"
+        error_message += "\nPlease set these variables in your .env file or environment before running the application."
+        log.error(error_message)
+        raise ValueError(error_message)
+    
+    log.info("All required environment variables are set.")
 
 def initialize_client(api_key):
     """Initialize the Gemini client."""
+    if not api_key:
+        log.error("No Gemini API key provided in environment variables")
+        raise ValueError("Missing Gemini API key. Please set the GEMINI_API_KEY environment variable.")
     return genai.Client(api_key=api_key)
 
-def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=3):
+def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=3, sequence_amount=5):
     """Generate frames using Gemini API with retries for multiple frames."""
     log.info(f"Generating frames with prompt: {prompt[:100]}...")
     
@@ -115,7 +145,7 @@ def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_ret
             
             # Otherwise, try again with a stronger prompt
             log.warning(f"Only received {frame_count} frame(s). Retrying with enhanced prompt...")
-            prompt = f"{prompt} Please create at least 5 distinct frames showing different stages of the animation."
+            prompt = f"{prompt} Please create at least {sequence_amount} distinct frames showing different stages of the animation."
             time.sleep(1)  # Small delay between retries
             
             pbar.update(1)
@@ -364,9 +394,6 @@ async def generate_videos_for_frames(client, scenes_info, output_dir):
     """Generate videos for each frame using the FAL API."""
     log.info("Starting video generation for each frame...")
     
-    # Set FAL API key in environment
-    os.environ["FAL_KEY"] = FAL_KEY
-    
     # Create videos directory
     videos_dir = os.path.join(output_dir, "videos")
     os.makedirs(videos_dir, exist_ok=True)
@@ -474,7 +501,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir):
         log.error(f"Error combining videos: {str(e)}")
         return None
 
-async def async_main(generate_videos=False, custom_description=None):
+async def async_main(generate_videos=False, custom_description=None, sequence_amount=5):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -498,7 +525,7 @@ async def async_main(generate_videos=False, custom_description=None):
     description = custom_description if custom_description is not None else default_description
     
     # Build the complete prompt
-    prompt = f"""GENERATE (do not describe) a sequence of 5-8 actual images.
+    prompt = f"""GENERATE (do not describe) a sequence of {sequence_amount} actual images.
     Each image should be a frame in {description}
     Each generated image should be a different scene.
     
@@ -515,7 +542,7 @@ async def async_main(generate_videos=False, custom_description=None):
     
     try:
         # Generate frames
-        response = generate_frames(client, prompt)
+        response = generate_frames(client, prompt, sequence_amount=sequence_amount)
         
         # Process and save frames
         frame_paths = []
@@ -567,7 +594,7 @@ async def async_main(generate_videos=False, custom_description=None):
             
             # Generate voice for each scene
             log.info("Generating voice audio for scenes...")
-            scenes_info = generate_voices_for_scenes(scenes_info, output_dir, ELEVENLABS_API_KEY)
+            scenes_info = generate_voices_for_scenes(scenes_info, output_dir)
             
             # Save scenes data to JSON file
             json_path = os.path.join(output_dir, "scenes_data.json")
@@ -665,9 +692,6 @@ async def process_existing_folder(folder_path):
     # Initialize client
     client = initialize_client(GEMINI_API_KEY)
     
-    # Set FAL API key in environment
-    os.environ["FAL_KEY"] = FAL_KEY
-    
     # Find all frame files in the folder
     frame_files = sorted([f for f in os.listdir(folder_path) if f.startswith("frame_") and f.endswith(".png")])
     log.info(f"Found {len(frame_files)} frame files in folder")
@@ -748,6 +772,9 @@ async def process_existing_folder(folder_path):
         log.error(f"Error in video generation process: {str(e)}")
 
 def main():
+    # Check environment variables first
+    check_environment_variables()
+    
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Generate animated TV ads with Gemini")
     parser.add_argument("--generate-videos", action="store_true", 
@@ -756,6 +783,8 @@ def main():
                         help="Process an existing output folder to generate videos")
     parser.add_argument("--prompt", type=str,
                         help="Custom prompt description (replaces the default ad description)")
+    parser.add_argument("--sequence-amount", type=int, default=5,
+                        help="Number of frames to generate in the sequence (default: 5)")
     
     args = parser.parse_args()
     
@@ -765,7 +794,7 @@ def main():
     else:
         # Run the normal flow with custom prompt if provided
         custom_description = args.prompt
-        asyncio.run(async_main(args.generate_videos, custom_description))
+        asyncio.run(async_main(args.generate_videos, custom_description, args.sequence_amount))
 
 if __name__ == "__main__":
     main()
