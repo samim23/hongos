@@ -63,7 +63,7 @@ def initialize_client(api_key):
         raise ValueError("Missing Gemini API key. Please set the GEMINI_API_KEY environment variable.")
     return genai.Client(api_key=api_key)
 
-def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=3, sequence_amount=5):
+def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=5, sequence_amount=5):
     """Generate frames using Gemini API with retries for multiple frames."""
     log.info(f"Generating frames with prompt: {prompt[:100]}...")
     
@@ -129,24 +129,33 @@ def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_ret
             
             log.info(f"Received {frame_count} frames in response")
             
-            # If we got multiple frames, return the response
-            if frame_count > 1:
-                log.info(f"Successfully received {frame_count} frames on attempt {attempt}")
+            # If we got at least 75% of the requested frames, consider it a success
+            min_acceptable_frames = max(2, int(sequence_amount * 0.75))
+            if frame_count >= min_acceptable_frames:
+                log.info(f"Successfully received {frame_count} frames on attempt {attempt} (requested {sequence_amount})")
                 pbar.update(max_retries - pbar.n)  # Complete the progress bar
                 pbar.close()
                 return response
             
             # If this was the last attempt, return what we have
             if attempt == max_retries:
-                log.warning(f"Failed to get multiple frames after {max_retries} attempts. Proceeding with {frame_count} frames.")
+                log.warning(f"Failed to get {sequence_amount} frames after {max_retries} attempts. Proceeding with {frame_count} frames.")
                 pbar.update(1)
                 pbar.close()
                 return response
             
             # Otherwise, try again with a stronger prompt
             log.warning(f"Only received {frame_count} frame(s). Retrying with enhanced prompt...")
-            prompt = f"{prompt} Please create at least {sequence_amount} distinct frames showing different stages of the animation."
-            time.sleep(1)  # Small delay between retries
+            
+            # Make the prompt more explicit about the number of frames needed
+            if attempt == 1:
+                prompt = f"{prompt}\n\nIMPORTANT: I need EXACTLY {sequence_amount} distinct image frames, not fewer."
+            elif attempt == 2:
+                prompt = f"{prompt}\n\nCRITICAL: Please generate {sequence_amount} separate images. Each image should be a different scene in the sequence."
+            else:
+                prompt = f"{prompt}\n\nFINAL REQUEST: Generate {sequence_amount} images showing different scenes. Each image must be a separate frame."
+            
+            time.sleep(2)  # Slightly longer delay between retries
             
             pbar.update(1)
             
@@ -155,7 +164,7 @@ def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_ret
             if attempt == max_retries:
                 pbar.close()
                 raise
-            time.sleep(2)  # Longer delay after an error
+            time.sleep(3)  # Longer delay after an error
             pbar.update(1)
     
     # This should not be reached, but just in case
@@ -219,8 +228,8 @@ def extract_scene_info_with_llm(client, text_parts, output_dir):
                 scenes_info = json.loads(json_text)
                 
                 # Save the raw LLM response for debugging
-                with open(os.path.join(output_dir, "llm_extraction_response.txt"), 'w') as f:
-                    f.write(json_text)
+                # with open(os.path.join(output_dir, "llm_extraction_response.txt"), 'w') as f:
+                #     f.write(json_text)
                 
                 return scenes_info
             except json.JSONDecodeError as e:
@@ -776,7 +785,7 @@ def main():
     check_environment_variables()
     
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Generate animated TV ads with Gemini")
+    parser = argparse.ArgumentParser(description="Create fully generated video stories")
     parser.add_argument("--generate-videos", action="store_true", 
                         help="Generate animated videos for each frame (expensive and time-consuming)")
     parser.add_argument("--process-folder", type=str, 
