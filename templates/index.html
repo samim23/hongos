@@ -84,106 +84,93 @@
 			</div>
 
 			<form id="generatorForm">
+				<!-- Prompt -->
 				<div class="form-group">
-					<label for="customDescription">Prompt:</label>
+					<div class="control-header"><span class="icon">✏️</span> Prompt</div>
 					<textarea
-						id="customDescription"
+						id="prompt"
 						name="prompt"
 						rows="4"
-						placeholder="A TV ad for a mushroom supplement company. Make it ULTRA FUNNY and absurd in a Wes Anderson style."
-					>
-A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY and absurd in monty python style</textarea
-					>
+						placeholder="Describe what you want to generate..."
+					></textarea>
 				</div>
 
+				<!-- Number of Frames -->
 				<div class="form-group">
-					<label for="sequenceAmount">Number of Frames:</label>
+					<div class="control-header">
+						<span class="icon">🖼️</span> Number of Frames
+					</div>
 					<input
 						type="number"
 						id="sequenceAmount"
 						name="sequence_amount"
-						min="2"
-						max="10"
 						value="5"
+						min="3"
+						max="10"
 					/>
 				</div>
 
+				<!-- Voice Controls -->
 				<div class="form-group">
-					<label for="voiceSelection">Voice:</label>
-					<div class="voice-selection-container">
-						<select id="voiceSelection" name="voice_selection">
-							<option value="preset" selected>Choose a preset voice</option>
-							<option value="custom">Use custom voice ID</option>
-						</select>
-
-						<div id="presetVoiceContainer">
-							<select id="voiceId" name="voice_id">
-								<option value="pNInz6obpgDQGcFmaJgB" selected>
-									Adam (Default)
-								</option>
-								<option value="pqHfZKP75CvOlQylNhV4">Bill</option>
-								<option value="nPczCjzI2devNBz1zQrb">Brian</option>
-								<option value="9BWtsMINqrJLrRacOk9x">Aria</option>
-								<option value="Xb7hH8MSUJpSbSDYk0k2">Alice</option>
-								<option value="21m00Tcm4TlvDq8ikWAM">Rachel</option>
-								<option value="AZnzlk1XvdvUeBnXmlld">Domi</option>
-								<option value="EXAVITQu4vr4xnSDxMaL">Bella</option>
-								<option value="ErXwobaYiN019PkySvjV">Antoni</option>
-								<option value="MF3mGyEYCl7XYWbV9V6O">Elli</option>
-								<option value="TxGEqnHWrfWFTfGW9XjX">Josh</option>
-								<option value="VR6AewLTigWG4xSOukaG">Arnold</option>
-								<option value="yoZ06aMxZJJ28mfd3POQ">Sam</option>
+					<div class="control-header"><span class="icon">🔊</span> Voice</div>
+					<div class="control-row">
+						<div class="control-item">
+							<label for="voiceSelection">Voice Type</label>
+							<select id="voiceSelection" class="styled-select">
+								<option value="preset">Choose a preset voice</option>
+								<option value="custom">Use custom voice ID</option>
 							</select>
 						</div>
+						<div class="control-item" id="presetVoiceContainer">
+							<label for="voiceId">Preset Voice</label>
+							<select id="voiceId" name="voice_id" class="styled-select">
+								<option value="alloy">Alloy</option>
+								<option value="echo">Echo</option>
+								<option value="fable">Fable</option>
+								<option value="onyx">Onyx</option>
+								<option value="nova">Nova</option>
+								<option value="shimmer">Shimmer</option>
+							</select>
+						</div>
+					</div>
+				</div>
 
-						<div id="customVoiceContainer" class="hidden">
+				<!-- Music Controls -->
+				<div class="form-group">
+					<div class="control-header"><span class="icon">🎵</span> Music</div>
+					<div class="control-row">
+						<div class="control-item">
+							<label for="backgroundMusicUrl">Music URL</label>
 							<input
 								type="text"
-								id="customVoiceId"
-								placeholder="Enter ElevenLabs voice ID"
+								id="backgroundMusicUrl"
+								name="background_music_url"
+								placeholder="Enter URL to background music"
 							/>
-							<div class="voice-help-text">
-								Find your voice ID at
-								<a href="https://elevenlabs.io/voice-library" target="_blank"
-									>ElevenLabs Voice Library</a
-								>
+						</div>
+						<div class="control-item">
+							<label for="backgroundMusicVolume">Volume</label>
+							<div class="volume-slider-container">
+								<input
+									type="range"
+									id="backgroundMusicVolume"
+									name="background_music_volume"
+									min="0"
+									max="100"
+									value="30"
+									class="styled-slider"
+								/>
+								<span id="volumeValue">30%</span>
 							</div>
 						</div>
 					</div>
 				</div>
 
+				<!-- Start Image -->
 				<div class="form-group">
-					<label for="backgroundMusic">Background Music (Optional):</label>
-					<input
-						type="text"
-						id="backgroundMusic"
-						name="background_music"
-						placeholder="YouTube URL or video ID"
-						value="https://www.youtube.com/watch?v=jj0ChLVTpaA"
-					/>
-					<div class="music-help-text">
-						Enter a YouTube URL or video ID for background music
+					<div class="control-header">
+						<span class="icon">🖌️</span> Start Image
 					</div>
-				</div>
-
-				<div class="form-group">
-					<label for="backgroundMusicVolume">Background Music Volume:</label>
-					<div class="volume-slider-container">
-						<input
-							type="range"
-							id="backgroundMusicVolume"
-							name="background_music_volume"
-							min="0"
-							max="1"
-							step="0.1"
-							value="0.5"
-						/>
-						<span class="volume-value">0.5</span>
-					</div>
-				</div>
-
-				<div class="form-group">
-					<label for="imageUpload">Start with Image (Optional):</label>
 					<div class="image-upload-container">
 						<div class="image-upload-input">
 							<input
@@ -212,20 +199,45 @@ A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY 
 							</button>
 						</div>
 					</div>
-					<div class="image-help-text">
+					<!-- <div class="image-help-text">
 						The AI will use this image as inspiration for the generated frames
-					</div>
+					</div> -->
 					<input type="hidden" id="initialImageId" name="initial_image_id" />
 				</div>
 
-				<div class="form-group checkbox">
-					<input type="checkbox" id="generateVideos" name="generate_videos" />
-					<label for="generateVideos"
-						>Generate Full Videos (takes longer)</label
-					>
+				<!-- Generate Full Video -->
+				<div class="form-group">
+					<div class="control-header">
+						<span class="icon">🎬</span> Video Generation
+					</div>
+					<div class="control-row">
+						<div class="control-item">
+							<label>Generate Video</label>
+							<div class="toggle-switch-container">
+								<label class="toggle-switch" for="generateVideos">
+									<input
+										type="checkbox"
+										id="generateVideos"
+										name="generate_videos"
+									/>
+									<span class="toggle-slider"></span>
+								</label>
+								<span class="toggle-label"
+									>Generate full video (costs more credits)</span
+								>
+							</div>
+						</div>
+						<div class="control-item" id="videoModelContainer">
+							<label for="videoModel">Video Gen Model</label>
+							<select id="videoModel" name="video_model" class="styled-select">
+								<option value="veo2">veo2</option>
+							</select>
+						</div>
+					</div>
 				</div>
 
-				<button type="submit" id="generateBtn">Generate</button>
+				<!-- Submit Button -->
+				<button type="submit" id="generateBtn">Generate Story</button>
 			</form>
 
 			<div id="statusContainer" class="hidden">

@@ -17,22 +17,49 @@ document.addEventListener("DOMContentLoaded", function () {
 
 	// Function to handle voice selection toggle
 	function handleVoiceSelection() {
-		const selectionType = document.getElementById("voiceSelection").value;
+		const voiceSelection = document.getElementById("voiceSelection");
+		if (!voiceSelection) return; // Guard clause to prevent errors
+
+		const selectionType = voiceSelection.value;
 		const presetContainer = document.getElementById("presetVoiceContainer");
-		const customContainer = document.getElementById("customVoiceContainer");
+
+		// Add the custom voice container if it doesn't exist
+		let customContainer = document.getElementById("customVoiceContainer");
+		if (!customContainer) {
+			customContainer = document.createElement("div");
+			customContainer.id = "customVoiceContainer";
+			customContainer.className = "control-item hidden";
+			customContainer.innerHTML = `
+				<label for="customVoiceId">Custom Voice ID</label>
+				<input type="text" id="customVoiceId" placeholder="Enter custom voice ID">
+			`;
+
+			// Insert after presetContainer
+			if (presetContainer && presetContainer.parentNode) {
+				presetContainer.parentNode.appendChild(customContainer);
+			}
+		}
 
 		if (selectionType === "preset") {
-			presetContainer.classList.remove("hidden");
+			if (presetContainer) presetContainer.classList.remove("hidden");
 			customContainer.classList.add("hidden");
 			// Enable the preset voice ID for form submission
-			document.getElementById("voiceId").setAttribute("name", "voice_id");
-			document.getElementById("customVoiceId").removeAttribute("name");
+			const voiceId = document.getElementById("voiceId");
+			const customVoiceId = document.getElementById("customVoiceId");
+			if (voiceId && customVoiceId) {
+				voiceId.setAttribute("name", "voice_id");
+				customVoiceId.removeAttribute("name");
+			}
 		} else {
-			presetContainer.classList.add("hidden");
+			if (presetContainer) presetContainer.classList.add("hidden");
 			customContainer.classList.remove("hidden");
 			// Enable the custom voice ID for form submission
-			document.getElementById("customVoiceId").setAttribute("name", "voice_id");
-			document.getElementById("voiceId").removeAttribute("name");
+			const voiceId = document.getElementById("voiceId");
+			const customVoiceId = document.getElementById("customVoiceId");
+			if (voiceId && customVoiceId) {
+				customVoiceId.setAttribute("name", "voice_id");
+				voiceId.removeAttribute("name");
+			}
 		}
 	}
 
@@ -42,10 +69,10 @@ document.addEventListener("DOMContentLoaded", function () {
 		voiceSelection.addEventListener("change", function () {
 			handleVoiceSelection();
 		});
-	}
 
-	// Initialize the voice selection on page load
-	handleVoiceSelection();
+		// Initialize the voice selection on page load
+		handleVoiceSelection();
+	}
 
 	let statusCheckInterval;
 	let currentGenerationId = null;
@@ -424,7 +451,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 	if (volumeSlider && volumeValue) {
 		volumeSlider.addEventListener("input", function () {
-			volumeValue.textContent = this.value;
+			volumeValue.textContent = this.value + "%";
 		});
 	}
 
