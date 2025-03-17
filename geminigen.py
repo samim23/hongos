@@ -20,6 +20,8 @@ from dotenv import load_dotenv
 from voicegen import generate_voices_for_scenes
 # Import video generation module
 import videogen
+# Import music generation module
+import musicgen
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -276,7 +278,7 @@ def extract_scene_info(text):
     
     return scene_info
 
-def create_video_with_audio(frame_paths, scenes_info, output_dir):
+def create_video_with_audio(frame_paths, scenes_info, output_dir, background_music_url=None, background_music_volume=0.5):
     """
     Create a video from frames and audio files using MoviePy.
     
@@ -284,6 +286,8 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir):
         frame_paths (list): List of paths to frame images
         scenes_info (list): List of scene dictionaries with audio_path
         output_dir (str): Directory to save the output video
+        background_music_url (str, optional): YouTube URL or ID for background music
+        background_music_volume (float, optional): Volume for background music (0.0 to 1.0)
     
     Returns:
         str: Path to the output video file
@@ -292,7 +296,7 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir):
     
     try:
         # Import MoviePy
-        from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
+        from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, CompositeAudioClip
         
         # Output video path
         video_path = os.path.join(output_dir, "animation.mp4")
@@ -347,6 +351,53 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir):
         if clips:
             # Concatenate all clips
             final_clip = concatenate_videoclips(clips, method="compose")
+            
+            # Add background music if URL is provided
+            if background_music_url:
+                try:
+                    # Download music from YouTube
+                    music_dir = os.path.join(output_dir, "music")
+                    os.makedirs(music_dir, exist_ok=True)
+                    music_path = musicgen.download_audio_from_youtube(
+                        background_music_url, 
+                        output_dir=music_dir
+                    )
+                    
+                    if music_path:
+                        # Trim music to match video duration
+                        trimmed_music_path = musicgen.trim_audio_to_length(
+                            music_path, 
+                            final_clip.duration,
+                            os.path.join(music_dir, "trimmed_background.mp3")
+                        )
+                        
+                        if trimmed_music_path:
+                            # Adjust volume of background music
+                            adjusted_music_path = musicgen.adjust_audio_volume(
+                                trimmed_music_path,
+                                volume=background_music_volume,
+                                output_path=os.path.join(music_dir, "background_adjusted.mp3")
+                            )
+                            
+                            if adjusted_music_path:
+                                # Load background music
+                                background_music = AudioFileClip(adjusted_music_path)
+                                
+                                # Get original audio from the video
+                                original_audio = final_clip.audio
+                                
+                                if original_audio:
+                                    # Combine original audio with background music
+                                    new_audio = CompositeAudioClip([original_audio, background_music])
+                                    final_clip = final_clip.set_audio(new_audio)
+                                    log.info("Added background music to video")
+                                else:
+                                    # No original audio, just use background music
+                                    final_clip = final_clip.set_audio(background_music)
+                                    log.info("Set background music as video audio")
+                except Exception as e:
+                    log.error(f"Error adding background music: {str(e)}")
+                    log.info("Continuing with original audio only")
             
             # Write output file
             final_clip.write_videofile(
@@ -443,7 +494,7 @@ async def generate_videos_for_frames(client, scenes_info, output_dir):
     
     return video_paths
 
-def combine_generated_videos(video_paths, scenes_info, output_dir):
+def combine_generated_videos(video_paths, scenes_info, output_dir, background_music_url=None, background_music_volume=0.5):
     """Combine all generated videos into a single video with audio."""
     log.info("Combining all generated videos...")
     
@@ -486,6 +537,54 @@ def combine_generated_videos(video_paths, scenes_info, output_dir):
             # Concatenate all clips
             final_clip = concatenate_videoclips(clips, method="compose")
             
+            # Add background music if URL is provided
+            if background_music_url:
+                try:
+                    # Download music from YouTube
+                    music_dir = os.path.join(output_dir, "music")
+                    os.makedirs(music_dir, exist_ok=True)
+                    music_path = musicgen.download_audio_from_youtube(
+                        background_music_url, 
+                        output_dir=music_dir,
+                        output_filename="final_background.mp3"
+                    )
+                    
+                    if music_path:
+                        # Trim music to match video duration
+                        trimmed_music_path = musicgen.trim_audio_to_length(
+                            music_path, 
+                            final_clip.duration,
+                            os.path.join(music_dir, "final_trimmed_background.mp3")
+                        )
+                        
+                        if trimmed_music_path:
+                            # Adjust volume of background music
+                            adjusted_music_path = musicgen.adjust_audio_volume(
+                                trimmed_music_path,
+                                volume=background_music_volume,
+                                output_path=os.path.join(music_dir, "final_background_adjusted.mp3")
+                            )
+                            
+                            if adjusted_music_path:
+                                # Load background music
+                                background_music = AudioFileClip(adjusted_music_path)
+                                
+                                # Get original audio from the video
+                                original_audio = final_clip.audio
+                                
+                                if original_audio:
+                                    # Combine original audio with background music
+                                    new_audio = CompositeAudioClip([original_audio, background_music])
+                                    final_clip = final_clip.set_audio(new_audio)
+                                    log.info("Added background music to final video")
+                                else:
+                                    # No original audio, just use background music
+                                    final_clip = final_clip.set_audio(background_music)
+                                    log.info("Set background music as final video audio")
+                except Exception as e:
+                    log.error(f"Error adding background music to final video: {str(e)}")
+                    log.info("Continuing with original audio only for final video")
+            
             # Write output file
             final_clip.write_videofile(
                 final_video_path,
@@ -510,7 +609,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir):
         log.error(f"Error combining videos: {str(e)}")
         return None
 
-async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB"):
+async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -548,6 +647,15 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     with open(os.path.join(output_dir, "prompt.txt"), 'w') as f:
         f.write(prompt)
     log.info(f"Using prompt: {prompt[:100]}...")
+    
+    # Save background music URL and volume if provided
+    if background_music_url:
+        with open(os.path.join(output_dir, "background_music_url.txt"), 'w') as f:
+            f.write(background_music_url)
+        # Also save the volume
+        with open(os.path.join(output_dir, "background_music_volume.txt"), 'w') as f:
+            f.write(str(background_music_volume))
+        log.info(f"Using background music from: {background_music_url} with volume: {background_music_volume}")
     
     try:
         # Generate frames
@@ -639,7 +747,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
         
         # Create MP4 video with audio - using MoviePy
         try:
-            video_path = create_video_with_audio(frame_paths, scenes_info, output_dir)
+            video_path = create_video_with_audio(frame_paths, scenes_info, output_dir, background_music_url, background_music_volume)
             if video_path:
                 log.info(f"Video with audio successfully saved to {video_path}")
         except Exception as e:
@@ -659,7 +767,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
                 
                 # Combine all videos into a final video
                 if video_paths:
-                    final_video_path = combine_generated_videos(video_paths, scenes_info, output_dir)
+                    final_video_path = combine_generated_videos(video_paths, scenes_info, output_dir, background_music_url, background_music_volume)
                     if final_video_path:
                         log.info(f"Final animated video successfully saved to {final_video_path}")
             except Exception as e:
@@ -674,7 +782,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
 
-async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB"):
+async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5):
     """Process an existing output folder to generate videos."""
     log.info(f"Processing existing folder: {folder_path}")
     
@@ -697,6 +805,46 @@ async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB"):
     except Exception as e:
         log.error(f"Error loading scenes data: {str(e)}")
         return
+    
+    # Check for existing background music URL
+    existing_music_url = None
+    music_url_path = os.path.join(folder_path, "background_music_url.txt")
+    if os.path.exists(music_url_path):
+        try:
+            with open(music_url_path, 'r') as f:
+                existing_music_url = f.read().strip()
+            log.info(f"Found existing background music URL: {existing_music_url}")
+        except Exception as e:
+            log.warning(f"Error reading background music URL: {str(e)}")
+    
+    # Use provided URL or existing URL
+    music_url = background_music_url or existing_music_url
+    
+    # If a new URL is provided, save it
+    if background_music_url and background_music_url != existing_music_url:
+        with open(music_url_path, 'w') as f:
+            f.write(background_music_url)
+        log.info(f"Saved new background music URL: {background_music_url}")
+    
+    # Check for existing background music volume
+    existing_music_volume = 0.5  # Default
+    music_volume_path = os.path.join(folder_path, "background_music_volume.txt")
+    if os.path.exists(music_volume_path):
+        try:
+            with open(music_volume_path, 'r') as f:
+                existing_music_volume = float(f.read().strip())
+            log.info(f"Found existing background music volume: {existing_music_volume}")
+        except Exception as e:
+            log.warning(f"Error reading background music volume: {str(e)}")
+    
+    # Use provided volume or existing volume
+    music_volume = background_music_volume if background_music_volume != 0.5 else existing_music_volume
+    
+    # If a new volume is provided, save it
+    if background_music_volume != 0.5 and background_music_volume != existing_music_volume:
+        with open(music_volume_path, 'w') as f:
+            f.write(str(background_music_volume))
+        log.info(f"Saved new background music volume: {background_music_volume}")
     
     # Initialize client
     client = initialize_client(GEMINI_API_KEY)
@@ -745,40 +893,6 @@ async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB"):
                 
                 if os.path.exists(audio_path):
                     scenes_info[i]["audio_path"] = audio_path
-                    log.info(f"Found audio for frame {frame_num}: {audio_path}")
-                else:
-                    # Try to find audio file by scene number (1-based) as fallback
-                    scene_num = i + 1
-                    audio_pattern = f"scene_{scene_num:03d}_audio.mp3"
-                    audio_path = os.path.join(audio_dir, audio_pattern)
-                    
-                    if os.path.exists(audio_path):
-                        scenes_info[i]["audio_path"] = audio_path
-                        log.info(f"Found audio for scene {scene_num}: {audio_path}")
-                    else:
-                        log.warning(f"No audio found for frame {frame_num} / scene {scene_num}")
-    
-    # Generate videos for each frame
-    try:
-        log.info("Starting video generation for existing frames...")
-        video_paths = await generate_videos_for_frames(client, scenes_info, folder_path)
-        
-        # Save updated scenes data with video paths
-        with open(os.path.join(folder_path, "scenes_data_with_videos.json"), 'w') as f:
-            json.dump(scenes_info, f, indent=2)
-        
-        # Combine all videos into a final video
-        if video_paths:
-            final_video_path = combine_generated_videos(video_paths, scenes_info, folder_path)
-            if final_video_path:
-                log.info(f"Final animated video successfully saved to {final_video_path}")
-                print(f"\nFinal animated video: {final_video_path}")
-            else:
-                log.error("Failed to create final video")
-        else:
-            log.error("No videos were generated successfully")
-    except Exception as e:
-        log.error(f"Error in video generation process: {str(e)}")
 
 def main():
     # Check environment variables first
@@ -796,16 +910,37 @@ def main():
                         help="Number of frames to generate in the sequence (default: 5)")
     parser.add_argument("--voice-id", type=str, default="pNInz6obpgDQGcFmaJgB",
                         help="ElevenLabs voice ID to use for audio generation")
+    parser.add_argument("--background-music", type=str,
+                        help="YouTube URL or video ID for background music")
+    parser.add_argument("--background-music-volume", type=float, default=0.5,
+                        help="Volume for background music, between 0.0 and 1.0 (default: 0.5)")
     
     args = parser.parse_args()
     
+    # Validate volume range
+    if args.background_music_volume < 0.0 or args.background_music_volume > 1.0:
+        log.warning(f"Invalid background music volume: {args.background_music_volume}. Using default 0.5")
+        args.background_music_volume = 0.5
+    
     if args.process_folder:
         # Process existing folder
-        asyncio.run(process_existing_folder(args.process_folder, args.voice_id))
+        asyncio.run(process_existing_folder(
+            args.process_folder, 
+            args.voice_id, 
+            args.background_music,
+            args.background_music_volume
+        ))
     else:
         # Run the normal flow with custom prompt if provided
         custom_description = args.prompt
-        asyncio.run(async_main(args.generate_videos, custom_description, args.sequence_amount, args.voice_id))
+        asyncio.run(async_main(
+            args.generate_videos, 
+            custom_description, 
+            args.sequence_amount, 
+            args.voice_id, 
+            args.background_music,
+            args.background_music_volume
+        ))
 
 if __name__ == "__main__":
     main()
