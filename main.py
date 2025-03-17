@@ -30,10 +30,17 @@ async def get_index(request: Request):
 @app.post("/generate")
 async def generate(
     background_tasks: BackgroundTasks,
-    custom_description: str = Form(""),
+    prompt: str = Form(None),
     sequence_amount: int = Form(5),
-    generate_videos: bool = Form(False)
+    generate_videos: bool = Form(False),
+    voice_id: str = Form("pNInz6obpgDQGcFmaJgB"),
+    background_music: str = Form(None),
+    background_music_volume: float = Form(0.5)
 ):
+    # Log the received parameters
+    print(f"DEBUG - Received background_music: {background_music}")
+    print(f"DEBUG - Received background_music_volume: {background_music_volume}")
+    
     # Create a new result entry
     new_result = {
         "id": len(generation_results) + 1,
@@ -49,11 +56,19 @@ async def generate(
     generation_results.insert(0, new_result)
     
     # Run the generation in the background
-    background_tasks.add_task(run_generation, new_result, custom_description, sequence_amount, generate_videos)
+    background_tasks.add_task(run_generation, new_result, prompt, sequence_amount, generate_videos, voice_id, background_music, background_music_volume)
     
     return {"status": "started", "id": new_result["id"]}
 
-async def run_generation(result, custom_description, sequence_amount, generate_videos):
+async def run_generation(
+    result, 
+    prompt, 
+    sequence_amount, 
+    generate_videos,
+    voice_id,
+    background_music,
+    background_music_volume
+):
     try:
         # Check environment variables
         geminigen.check_environment_variables()
@@ -61,8 +76,11 @@ async def run_generation(result, custom_description, sequence_amount, generate_v
         # Run the generator
         await geminigen.async_main(
             generate_videos=generate_videos,
-            custom_description=custom_description,
-            sequence_amount=sequence_amount
+            custom_description=prompt,
+            sequence_amount=sequence_amount,
+            voice_id=voice_id,
+            background_music_url=background_music,
+            background_music_volume=background_music_volume
         )
         
         # Find the latest output directory
