@@ -132,11 +132,43 @@ async def run_generation(
     initial_image_path
 ):
     try:
+        # Add more detailed logging
+        print(f"DEBUG - Starting generation with parameters:")
+        print(f"  - prompt: {prompt[:50] if prompt else 'None'}...")
+        print(f"  - sequence_amount: {sequence_amount}")
+        print(f"  - generate_videos: {generate_videos}")
+        print(f"  - voice_id: {voice_id}")
+        print(f"  - background_music: {background_music}")
+        print(f"  - background_music_volume: {background_music_volume}")
+        print(f"  - initial_image_path: {initial_image_path}")
+        
+        # Check if the initial image exists
+        if initial_image_path:
+            # Convert to absolute path if it's not already
+            if not os.path.isabs(initial_image_path):
+                initial_image_path = os.path.abspath(initial_image_path)
+                print(f"DEBUG - Converted to absolute path: {initial_image_path}")
+            
+            if os.path.exists(initial_image_path):
+                print(f"DEBUG - Initial image exists at {initial_image_path}")
+                # Get file size and dimensions for debugging
+                file_size = os.path.getsize(initial_image_path)
+                try:
+                    from PIL import Image
+                    img = Image.open(initial_image_path)
+                    dimensions = img.size
+                    print(f"DEBUG - Image size: {file_size} bytes, dimensions: {dimensions}")
+                except Exception as e:
+                    print(f"DEBUG - Error getting image info: {e}")
+            else:
+                print(f"ERROR - Initial image does not exist at {initial_image_path}")
+                initial_image_path = None
+        
         # Check environment variables
         geminigen.check_environment_variables()
         
         # Run the generator
-        await geminigen.async_main(
+        output_dir = await geminigen.async_main(
             generate_videos=generate_videos,
             custom_description=prompt,
             sequence_amount=sequence_amount,
@@ -146,32 +178,56 @@ async def run_generation(
             initial_image_path=initial_image_path
         )
         
-        # Find the latest output directory
-        base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
-        output_dirs = sorted([d for d in os.listdir(base_output_dir) if d.startswith("run_")], reverse=True)
+        # If output_dir is None, try to find the most recent output directory
+        if output_dir is None:
+            print("DEBUG - Output directory not returned, trying to find the most recent one")
+            try:
+                base_output_dir = "outputs"
+                if os.path.exists(base_output_dir) and os.path.isdir(base_output_dir):
+                    # Get all run directories
+                    run_dirs = [d for d in os.listdir(base_output_dir) if d.startswith("run_")]
+                    if run_dirs:
+                        # Sort by creation time (newest first)
+                        run_dirs.sort(key=lambda x: os.path.getctime(os.path.join(base_output_dir, x)), reverse=True)
+                        # Get the most recent directory
+                        most_recent_dir = os.path.join(base_output_dir, run_dirs[0])
+                        print(f"DEBUG - Found most recent output directory: {most_recent_dir}")
+                        
+                        # Check if this directory contains the expected files
+                        if (os.path.exists(os.path.join(most_recent_dir, "animation.mp4")) or 
+                            os.path.exists(os.path.join(most_recent_dir, "animation.gif"))):
+                            output_dir = most_recent_dir
+                            print(f"DEBUG - Using most recent output directory: {output_dir}")
+            except Exception as e:
+                print(f"DEBUG - Error finding most recent output directory: {e}")
         
-        if output_dirs:
-            latest_dir = os.path.join(base_output_dir, output_dirs[0])
-            
-            # Update results
+        # Update result with output directory
+        if output_dir:
+            result["output_dir"] = output_dir
             result["status"] = "completed"
-            result["output_dir"] = latest_dir
             
-            # Find video path
-            video_path = os.path.join(latest_dir, "animation.mp4")
+            # Find the video file
+            video_path = os.path.join(output_dir, "animation.mp4")
             if os.path.exists(video_path):
-                result["video_path"] = os.path.relpath(video_path, start=os.path.dirname(os.path.abspath(__file__)))
+                result["video_path"] = video_path
+                print(f"DEBUG - Found video at {video_path}")
+            else:
+                print(f"WARNING - Video file not found at {video_path}")
             
-            # Find final video path if videos were generated
-            if generate_videos:
-                final_video_path = os.path.join(latest_dir, "final_animation.mp4")
-                if os.path.exists(final_video_path):
-                    result["final_video_path"] = os.path.relpath(final_video_path, start=os.path.dirname(os.path.abspath(__file__)))
+            # Find the final video file if it exists
+            final_video_path = os.path.join(output_dir, "final_video.mp4")
+            if os.path.exists(final_video_path):
+                result["final_video_path"] = final_video_path
+                print(f"DEBUG - Found final video at {final_video_path}")
         else:
             result["status"] = "error"
-            result["error"] = "No output directory found"
+            result["error"] = "Generation failed - no output directory returned"
+            print("ERROR - No output directory found or returned")
             
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error\n{str(e)}\n\nDetails:\n{error_details}")
         result["status"] = "error"
         result["error"] = str(e)
 

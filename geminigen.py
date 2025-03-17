@@ -973,6 +973,46 @@ async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", 
                 
                 if os.path.exists(audio_path):
                     scenes_info[i]["audio_path"] = audio_path
+                    log.info(f"Found audio file for scene {i+1}: {audio_path}")
+                else:
+                    # Try to find by scene number (1-based) next
+                    scene_num = i + 1
+                    audio_pattern = f"scene_{scene_num}_audio.mp3"
+                    audio_path = os.path.join(audio_dir, audio_pattern)
+                    
+                    if os.path.exists(audio_path):
+                        scenes_info[i]["audio_path"] = audio_path
+                        log.info(f"Found audio file for scene {i+1}: {audio_path}")
+    
+    # Generate voices for scenes that don't have audio
+    scenes_with_missing_audio = [i for i, scene in enumerate(scenes_info) if "audio_path" not in scene or not os.path.exists(scene["audio_path"])]
+    if scenes_with_missing_audio:
+        log.info(f"Generating voices for {len(scenes_with_missing_audio)} scenes with missing audio")
+        scenes_info = generate_voices_for_scenes(scenes_info, folder_path, voice_id)
+    
+    # Save updated scenes data
+    with open(scenes_data_path, 'w') as f:
+        json.dump(scenes_info, f, indent=2)
+    log.info(f"Saved updated scene information to {scenes_data_path}")
+    
+    # Generate videos for each frame if requested
+    try:
+        # Generate videos for each frame
+        video_paths = await generate_videos_for_frames(client, scenes_info, folder_path)
+        
+        # Save updated scenes data with video paths
+        with open(os.path.join(folder_path, "scenes_data_with_videos.json"), 'w') as f:
+            json.dump(scenes_info, f, indent=2)
+        
+        # Combine all videos into a final video
+        if video_paths:
+            final_video_path = combine_generated_videos(video_paths, scenes_info, folder_path, music_url, music_volume)
+            if final_video_path:
+                log.info(f"Final animated video successfully saved to {final_video_path}")
+                return final_video_path
+    except Exception as e:
+        log.error(f"Error in video generation process: {str(e)}")
+        return None
 
 def main():
     # Check environment variables first
@@ -1008,7 +1048,7 @@ def main():
     initial_image_path = None
     if args.initial_image:
         if os.path.exists(args.initial_image):
-            initial_image_path = args.initial_image
+            initial_image_path = os.path.abspath(args.initial_image)
             log.info(f"Using initial image from: {initial_image_path}")
         else:
             log.error(f"Initial image not found: {args.initial_image}")
