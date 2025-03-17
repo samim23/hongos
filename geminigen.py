@@ -65,12 +65,52 @@ def initialize_client(api_key):
         raise ValueError("Missing Gemini API key. Please set the GEMINI_API_KEY environment variable.")
     return genai.Client(api_key=api_key)
 
-def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=5, sequence_amount=5):
+def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=5, sequence_amount=5, initial_image_path=None):
     """Generate frames using Gemini API with retries for multiple frames."""
     log.info(f"Generating frames with prompt: {prompt[:100]}...")
     
     # Create a progress bar for retries
     pbar = tqdm(total=max_retries, desc="Generating frames")
+    
+    # If initial image is provided, load it and prepare for the API request
+    initial_image_part = None
+    if initial_image_path and os.path.exists(initial_image_path):
+        try:
+            log.info(f"Loading initial image from: {initial_image_path}")
+            
+            # Use PIL to open and process the image
+            from PIL import Image
+            from io import BytesIO
+            
+            # Open the image
+            img = Image.open(initial_image_path)
+            
+            # Convert to bytes
+            img_byte_arr = BytesIO()
+            img.save(img_byte_arr, format=img.format if img.format else 'JPEG')
+            image_bytes = img_byte_arr.getvalue()
+            
+            # Determine mime type
+            mime_type = f"image/{img.format.lower()}" if img.format else "image/jpeg"
+            
+            # Create the Part object using the correct method
+            try:
+                # Try creating a Part with inline_data
+                initial_image_part = types.Part(
+                    inline_data=types.Blob(
+                        mime_type=mime_type,
+                        data=image_bytes
+                    )
+                )
+            except Exception as e:
+                log.warning(f"Failed to create image part: {str(e)}")
+                initial_image_part = None
+            
+            log.info(f"Successfully loaded initial image ({len(image_bytes)} bytes)")
+        except Exception as e:
+            log.error(f"Error loading initial image: {str(e)}")
+            log.warning("Proceeding without initial image")
+            initial_image_part = None
     
     for attempt in range(1, max_retries + 1):
         try:
@@ -96,9 +136,19 @@ def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_ret
                 }
             ]
             
+            # Prepare the content for the API request
+            if initial_image_part:
+                # If we have an initial image, include it in the request
+                # Create text part correctly
+                text_part = types.Part(text=prompt)
+                contents = [initial_image_part, text_part]
+            else:
+                # Otherwise, just use the text prompt
+                contents = prompt
+            
             response = client.models.generate_content(
                 model=model,
-                contents=prompt,
+                contents=contents,
                 config=types.GenerateContentConfig(
                     response_modalities=['Text', 'Image'],
                     safety_settings=safety_settings
@@ -609,7 +659,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir, background_mu
         log.error(f"Error combining videos: {str(e)}")
         return None
 
-async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5):
+async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5, initial_image_path=None):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -643,6 +693,36 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     3. A caption that fits the scene
     Please return actual generated images, not just text descriptions."""
     
+    # If initial image is provided, modify the prompt
+    if initial_image_path:
+        log.info(f"Using initial image from: {initial_image_path}")
+        # Copy the initial image to the output directory for reference
+        if os.path.exists(initial_image_path):
+            initial_image_filename = os.path.basename(initial_image_path)
+            initial_image_copy_path = os.path.join(output_dir, f"initial_image_{initial_image_filename}")
+            try:
+                import shutil
+                shutil.copy2(initial_image_path, initial_image_copy_path)
+                log.info(f"Copied initial image to: {initial_image_copy_path}")
+            except Exception as e:
+                log.error(f"Error copying initial image: {str(e)}")
+        
+        # Modify the prompt to reference the initial image with stronger language
+        prompt = f"""I'm providing an image as a starting point. GENERATE (do not describe) a sequence of {sequence_amount} actual images that MUST use the style, colors, and visual elements from this image.
+        
+        Each image should be a frame in {description}
+        Each generated image should be a different scene, but MUST maintain visual consistency with the provided image.
+        
+        IMPORTANT: 
+        - The generated images MUST look like they belong in the same visual universe as the provided image
+        - Use similar color palette, artistic style, and visual elements as the provided image
+        - For each image, please provide:
+          1. SCENE X: (where X is the scene number)
+          2. A detailed visual description of what's in the image
+          3. A caption that fits the scene
+        
+        Please return actual generated images, not just text descriptions."""
+    
     # Save the prompt to a file for reference
     with open(os.path.join(output_dir, "prompt.txt"), 'w') as f:
         f.write(prompt)
@@ -659,7 +739,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     
     try:
         # Generate frames
-        response = generate_frames(client, prompt, sequence_amount=sequence_amount)
+        response = generate_frames(client, prompt, sequence_amount=sequence_amount, initial_image_path=initial_image_path)
         
         # Process and save frames
         frame_paths = []
@@ -914,6 +994,8 @@ def main():
                         help="YouTube URL or video ID for background music")
     parser.add_argument("--background-music-volume", type=float, default=0.5,
                         help="Volume for background music, between 0.0 and 1.0 (default: 0.5)")
+    parser.add_argument("--initial-image", type=str,
+                        help="Path to an initial image to use as a starting point for generation")
     
     args = parser.parse_args()
     
@@ -921,6 +1003,16 @@ def main():
     if args.background_music_volume < 0.0 or args.background_music_volume > 1.0:
         log.warning(f"Invalid background music volume: {args.background_music_volume}. Using default 0.5")
         args.background_music_volume = 0.5
+    
+    # Validate initial image path if provided
+    initial_image_path = None
+    if args.initial_image:
+        if os.path.exists(args.initial_image):
+            initial_image_path = args.initial_image
+            log.info(f"Using initial image from: {initial_image_path}")
+        else:
+            log.error(f"Initial image not found: {args.initial_image}")
+            return
     
     if args.process_folder:
         # Process existing folder
@@ -939,7 +1031,8 @@ def main():
             args.sequence_amount, 
             args.voice_id, 
             args.background_music,
-            args.background_music_volume
+            args.background_music_volume,
+            initial_image_path
         ))
 
 if __name__ == "__main__":
