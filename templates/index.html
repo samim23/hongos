@@ -4,6 +4,10 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>HONGOS - AI Video Shorts Generator</title>
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+		/>
 		<link rel="stylesheet" href="/static/style.css" />
 	</head>
 	<body>
@@ -21,7 +25,7 @@
 				<div class="config-title">API Configuration</div>
 				<div class="api-key-group">
 					<label for="geminiApiKey">
-						Gemini API Key:
+						Gemini API Key
 						<a
 							href="https://aistudio.google.com/apikey"
 							target="_blank"
@@ -40,7 +44,7 @@
 				</div>
 				<div class="api-key-group">
 					<label for="falApiKey">
-						FAL API Key:
+						FAL API Key
 						<a
 							href="https://fal.ai/dashboard/keys"
 							target="_blank"
@@ -59,7 +63,7 @@
 				</div>
 				<div class="api-key-group">
 					<label for="elevenLabsApiKey">
-						ElevenLabs API Key:
+						ElevenLabs API Key
 						<a
 							href="https://elevenlabs.io/app/settings/api-keys"
 							target="_blank"
@@ -105,9 +109,7 @@ A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY 
 
 				<div class="form-group checkbox">
 					<input type="checkbox" id="generateVideos" name="generate_videos" />
-					<label for="generateVideos"
-						>Generate Animated Videos (takes longer)</label
-					>
+					<label for="generateVideos">Generate Videos (takes longer)</label>
 				</div>
 
 				<button type="submit" id="generateBtn">Generate</button>
