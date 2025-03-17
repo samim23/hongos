@@ -63,6 +63,12 @@ document.addEventListener("DOMContentLoaded", function () {
 		// Get form data
 		const formData = new FormData(form);
 
+		// Add the initial image ID if it exists
+		const initialImageId = document.getElementById("initialImageId").value;
+		if (initialImageId) {
+			formData.append("initial_image_id", initialImageId);
+		}
+
 		try {
 			// Start generation
 			const response = await fetch("/generate", {
@@ -421,4 +427,86 @@ document.addEventListener("DOMContentLoaded", function () {
 			volumeValue.textContent = this.value;
 		});
 	}
+
+	// Image upload handling
+	document
+		.querySelector(".file-input-button")
+		.addEventListener("click", function () {
+			document.getElementById("imageUpload").click();
+		});
+
+	document
+		.getElementById("imageUpload")
+		.addEventListener("change", async function (event) {
+			const file = event.target.files[0];
+			if (!file) return;
+
+			// Update the file name display
+			document.querySelector(".file-name").textContent = file.name;
+
+			// Create a FormData object
+			const formData = new FormData();
+			formData.append("file", file);
+
+			try {
+				// Show loading state
+				document.querySelector(".file-name").textContent = "Uploading...";
+
+				// Upload the file
+				const response = await fetch("/upload-image", {
+					method: "POST",
+					body: formData,
+				});
+
+				if (!response.ok) {
+					throw new Error("Upload failed");
+				}
+
+				const data = await response.json();
+
+				// Store the upload ID
+				document.getElementById("initialImageId").value = data.upload_id;
+
+				// Show the preview
+				const previewImage = document.getElementById("previewImage");
+				previewImage.src = URL.createObjectURL(file);
+				document.querySelector(".file-name").textContent = file.name;
+
+				// Make sure the preview container is visible
+				const uploadPreview = document.getElementById("uploadPreview");
+				uploadPreview.classList.remove("hidden");
+			} catch (error) {
+				console.error("Error uploading image:", error);
+				document.querySelector(".file-name").textContent =
+					"Upload failed. Try again.";
+				setTimeout(() => {
+					document.querySelector(".file-name").textContent = "No file chosen";
+				}, 3000);
+			}
+		});
+
+	// Clear image button
+	document
+		.getElementById("clearImageBtn")
+		.addEventListener("click", async function () {
+			const uploadId = document.getElementById("initialImageId").value;
+			if (!uploadId) return;
+
+			try {
+				// Clear the image on the server
+				await fetch(`/clear-image/${uploadId}`, {
+					method: "POST",
+				});
+
+				// Reset the UI
+				document.getElementById("initialImageId").value = "";
+				document.getElementById("imageUpload").value = "";
+				document.querySelector(".file-name").textContent = "No file chosen";
+
+				// Hide the preview
+				document.getElementById("uploadPreview").classList.add("hidden");
+			} catch (error) {
+				console.error("Error clearing image:", error);
+			}
+		});
 });

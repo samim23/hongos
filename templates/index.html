@@ -159,6 +159,7 @@ A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY 
 						id="backgroundMusic"
 						name="background_music"
 						placeholder="YouTube URL or video ID"
+						value="https://www.youtube.com/watch?v=jj0ChLVTpaA"
 					/>
 					<div class="music-help-text">
 						Enter a YouTube URL or video ID for background music
@@ -177,8 +178,44 @@ A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY 
 							step="0.1"
 							value="0.5"
 						/>
-						<span id="volumeValue">0.5</span>
+						<span class="volume-value">0.5</span>
 					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="imageUpload">Start with Image (Optional):</label>
+					<div class="image-upload-container">
+						<div class="image-upload-input">
+							<input
+								type="file"
+								id="imageUpload"
+								name="image_upload"
+								accept="image/*"
+								class="file-input"
+							/>
+							<div class="file-input-wrapper">
+								<button type="button" class="file-input-button">
+									Choose Image
+								</button>
+								<span class="file-name">No file chosen</span>
+							</div>
+						</div>
+						<div id="uploadPreview" class="image-preview-container hidden">
+							<img
+								id="previewImage"
+								src=""
+								alt="Preview"
+								class="preview-image"
+							/>
+							<button id="clearImageBtn" type="button" class="clear-image-btn">
+								<span class="clear-icon">×</span>
+							</button>
+						</div>
+					</div>
+					<div class="image-help-text">
+						The AI will use this image as inspiration for the generated frames
+					</div>
+					<input type="hidden" id="initialImageId" name="initial_image_id" />
 				</div>
 
 				<div class="form-group checkbox">

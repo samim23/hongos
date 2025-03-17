@@ -1,12 +1,14 @@
 import os
 import asyncio
 import uvicorn
-from fastapi import FastAPI, Request, Form, BackgroundTasks, Body
+from fastapi import FastAPI, Request, Form, BackgroundTasks, Body, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 import geminigen
 from pathlib import Path
+import shutil
+import uuid
 
 app = FastAPI()
 
@@ -19,13 +21,53 @@ app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 os.makedirs("templates", exist_ok=True)
 os.makedirs("static", exist_ok=True)
 os.makedirs("outputs", exist_ok=True)
+os.makedirs("uploads", exist_ok=True)  # New directory for uploaded images
 
 # Store all generation results
 generation_results = []
 
+# Store uploaded image paths
+uploaded_images = {}
+
 @app.get("/", response_class=HTMLResponse)
 async def get_index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    # Generate a unique ID for this upload
+    upload_id = str(uuid.uuid4())
+    
+    # Create file path
+    file_extension = os.path.splitext(file.filename)[1]
+    file_path = os.path.join("uploads", f"{upload_id}{file_extension}")
+    
+    # Save the file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Store the file path
+    uploaded_images[upload_id] = {
+        "path": file_path,
+        "filename": file.filename
+    }
+    
+    return {"upload_id": upload_id, "filename": file.filename}
+
+@app.post("/clear-image/{upload_id}")
+async def clear_image(upload_id: str):
+    if upload_id in uploaded_images:
+        # Delete the file if it exists
+        file_path = uploaded_images[upload_id]["path"]
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Remove from dictionary
+        del uploaded_images[upload_id]
+        
+        return {"status": "success"}
+    
+    return {"status": "error", "message": "Image not found"}
 
 @app.post("/generate")
 async def generate(
@@ -35,11 +77,19 @@ async def generate(
     generate_videos: bool = Form(False),
     voice_id: str = Form("pNInz6obpgDQGcFmaJgB"),
     background_music: str = Form(None),
-    background_music_volume: float = Form(0.5)
+    background_music_volume: float = Form(0.5),
+    initial_image_id: str = Form(None)
 ):
     # Log the received parameters
     print(f"DEBUG - Received background_music: {background_music}")
     print(f"DEBUG - Received background_music_volume: {background_music_volume}")
+    print(f"DEBUG - Received initial_image_id: {initial_image_id}")
+    
+    # Get the initial image path if provided
+    initial_image_path = None
+    if initial_image_id and initial_image_id in uploaded_images:
+        initial_image_path = uploaded_images[initial_image_id]["path"]
+        print(f"DEBUG - Using initial image: {initial_image_path}")
     
     # Create a new result entry
     new_result = {
@@ -49,14 +99,25 @@ async def generate(
         "video_path": "",
         "final_video_path": "",
         "error": "",
-        "timestamp": asyncio.get_event_loop().time()
+        "timestamp": asyncio.get_event_loop().time(),
+        "initial_image_id": initial_image_id
     }
     
     # Add to results list
     generation_results.insert(0, new_result)
     
     # Run the generation in the background
-    background_tasks.add_task(run_generation, new_result, prompt, sequence_amount, generate_videos, voice_id, background_music, background_music_volume)
+    background_tasks.add_task(
+        run_generation, 
+        new_result, 
+        prompt, 
+        sequence_amount, 
+        generate_videos, 
+        voice_id, 
+        background_music, 
+        background_music_volume,
+        initial_image_path
+    )
     
     return {"status": "started", "id": new_result["id"]}
 
@@ -67,7 +128,8 @@ async def run_generation(
     generate_videos,
     voice_id,
     background_music,
-    background_music_volume
+    background_music_volume,
+    initial_image_path
 ):
     try:
         # Check environment variables
@@ -80,7 +142,8 @@ async def run_generation(
             sequence_amount=sequence_amount,
             voice_id=voice_id,
             background_music_url=background_music,
-            background_music_volume=background_music_volume
+            background_music_volume=background_music_volume,
+            initial_image_path=initial_image_path
         )
         
         # Find the latest output directory
