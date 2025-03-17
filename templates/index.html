@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>HONGOS - AI Video Shorts Generator</title>
+		<link rel="stylesheet" href="/static/style.css" />
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>HONGOS</h1>
+				<h2>AI Video Shorts Generator</h2>
+			</header>
+
+			<form id="generatorForm">
+				<div class="form-group">
+					<label for="customDescription">Prompt:</label>
+					<textarea
+						id="customDescription"
+						name="custom_description"
+						rows="4"
+						placeholder="A TV ad for a mushroom supplement company. Make it ULTRA FUNNY and absurd in a Wes Anderson style."
+					>
+A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY and absurd in monty python style</textarea
+					>
+				</div>
+
+				<div class="form-group">
+					<label for="sequenceAmount">Number of Frames:</label>
+					<input
+						type="number"
+						id="sequenceAmount"
+						name="sequence_amount"
+						min="2"
+						max="10"
+						value="5"
+					/>
+				</div>
+
+				<div class="form-group checkbox">
+					<input type="checkbox" id="generateVideos" name="generate_videos" />
+					<label for="generateVideos"
+						>Generate Animated Videos (takes longer)</label
+					>
+				</div>
+
+				<button type="submit" id="generateBtn">Generate</button>
+			</form>
+
+			<div id="statusContainer" class="hidden">
+				<h2>Generation Status</h2>
+				<div id="statusText">Initializing...</div>
+				<div class="spinner"></div>
+			</div>
+
+			<div id="resultsContainer">
+				<!-- Results will be dynamically added here -->
+			</div>
+
+			<div id="errorContainer" class="hidden">
+				<h2>Error</h2>
+				<div id="errorText"></div>
+			</div>
+		</div>
+
+		<script src="/static/script.js"></script>
+	</body>
+</html>
