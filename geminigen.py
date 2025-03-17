@@ -449,7 +449,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir):
         log.error(f"Error combining videos: {str(e)}")
         return None
 
-async def async_main(generate_videos=False):
+async def async_main(generate_videos=False, custom_description=None):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -457,13 +457,24 @@ async def async_main(generate_videos=False):
     os.makedirs(output_dir, exist_ok=True)
     log.info(f"Using output directory at {output_dir}")
     
+    # Create images directory
+    images_dir = os.path.join(output_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+    log.info(f"Created images directory at {images_dir}")
+    
     # Initialize client
     client = initialize_client(GEMINI_API_KEY)
     
-    # Define prompt with enhanced instructions for character information
-    prompt = """GENERATE (do not describe) a sequence of 5-8 actual images.
-    Each image should be a frame in a TV ad for a mushroom supplement company.
-    Make it ULTRA FUNNY and absurd in a Hayao Miyazaki style.
+    # Define the default description
+    default_description = """a TV ad for a mushroom supplement company.
+    Make it ULTRA FUNNY and absurd in a Wes Anderson style."""
+    
+    # Use custom description if provided, otherwise use default
+    description = custom_description if custom_description is not None else default_description
+    
+    # Build the complete prompt
+    prompt = f"""GENERATE (do not describe) a sequence of 5-8 actual images.
+    Each image should be a frame in {description}
     Each generated image should be a different scene.
     
     IMPORTANT: For each image, please provide:
@@ -471,6 +482,11 @@ async def async_main(generate_videos=False):
     2. A detailed visual description of what's in the image
     3. A caption that fits the scene
     Please return actual generated images, not just text descriptions."""
+    
+    # Save the prompt to a file for reference
+    with open(os.path.join(output_dir, "prompt.txt"), 'w') as f:
+        f.write(prompt)
+    log.info(f"Using prompt: {prompt[:100]}...")
     
     try:
         # Generate frames
@@ -491,8 +507,8 @@ async def async_main(generate_videos=False):
                     
                 elif hasattr(part, 'inline_data') and part.inline_data is not None:
                     try:
-                        # Save the image to the outputs directory
-                        frame_path = os.path.join(output_dir, f"frame_{frame_count:03d}.png")
+                        # Save the image to the images directory
+                        frame_path = os.path.join(images_dir, f"frame_{frame_count:03d}.png")
                         from PIL import Image
                         from io import BytesIO
                         image = Image.open(BytesIO(part.inline_data.data))
@@ -713,6 +729,8 @@ def main():
                         help="Generate animated videos for each frame (expensive and time-consuming)")
     parser.add_argument("--process-folder", type=str, 
                         help="Process an existing output folder to generate videos")
+    parser.add_argument("--prompt", type=str,
+                        help="Custom prompt description (replaces the default ad description)")
     
     args = parser.parse_args()
     
@@ -720,8 +738,9 @@ def main():
         # Process existing folder
         asyncio.run(process_existing_folder(args.process_folder))
     else:
-        # Run the normal flow
-        asyncio.run(async_main(args.generate_videos))
+        # Run the normal flow with custom prompt if provided
+        custom_description = args.prompt
+        asyncio.run(async_main(args.generate_videos, custom_description))
 
 if __name__ == "__main__":
     main()
