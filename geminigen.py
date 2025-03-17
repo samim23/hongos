@@ -34,18 +34,43 @@ def initialize_client(api_key):
     return genai.Client(api_key=api_key)
 
 def generate_frames(client, prompt, model="models/gemini-2.0-flash-exp", max_retries=3):
-    """Generate animation frames with retry logic if only one frame is returned."""
-    # Create a progress bar for the generation attempts
-    pbar = tqdm(total=max_retries, desc="Generating frames", unit="attempt")
+    """Generate frames using Gemini API with retries for multiple frames."""
+    log.info(f"Generating frames with prompt: {prompt[:100]}...")
+    
+    # Create a progress bar for retries
+    pbar = tqdm(total=max_retries, desc="Generating frames")
     
     for attempt in range(1, max_retries + 1):
-        log.info(f"Attempt {attempt}/{max_retries}: Sending request to Gemini with prompt: {prompt}")
-        
         try:
+            log.info(f"Attempt {attempt}/{max_retries}: Sending request to Gemini with prompt: {prompt}")
+            
+            # Add safety settings to allow more creative content - in the correct format
+            safety_settings = [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_ONLY_HIGH"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_ONLY_HIGH"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_ONLY_HIGH"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_ONLY_HIGH"
+                }
+            ]
+            
             response = client.models.generate_content(
                 model=model,
                 contents=prompt,
-                config=types.GenerateContentConfig(response_modalities=['Text', 'Image'])
+                config=types.GenerateContentConfig(
+                    response_modalities=['Text', 'Image'],
+                    safety_settings=safety_settings
+                )
             )
             
             # Count the number of image frames
