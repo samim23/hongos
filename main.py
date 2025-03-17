@@ -98,7 +98,9 @@ async def run_generation(result, custom_description, sequence_amount, generate_v
 async def process_folder(
     folder_id: int, 
     background_tasks: BackgroundTasks,
-    voice_id: str = Form("pNInz6obpgDQGcFmaJgB")  # Updated default to Adam
+    voice_id: str = Form("pNInz6obpgDQGcFmaJgB"),  # Updated default to Adam
+    background_music: str = Form(None),
+    background_music_volume: float = Form(0.5)
 ):
     # Find the result with the given ID
     result = None
@@ -114,24 +116,29 @@ async def process_folder(
     result["processing_status"] = "running"
     
     # Run the processing in the background
-    background_tasks.add_task(run_folder_processing, result, voice_id)
+    background_tasks.add_task(run_folder_processing, result, voice_id, background_music, background_music_volume)
     
     return {"status": "processing"}
 
-async def run_folder_processing(result, voice_id="pNInz6obpgDQGcFmaJgB"):
+async def run_folder_processing(
+    result, 
+    voice_id,
+    background_music,
+    background_music_volume
+):
     try:
-        folder_path = result["output_dir"]
-        await geminigen.process_existing_folder(folder_path, voice_id)
+        # Process the folder
+        await geminigen.process_existing_folder(
+            result["output_dir"],
+            voice_id=voice_id,
+            background_music_url=background_music,
+            background_music_volume=background_music_volume
+        )
         
-        # Update the result with the new video path
-        final_video_path = os.path.join(folder_path, "final_animation.mp4")
-        if os.path.exists(final_video_path):
-            result["final_video_path"] = os.path.relpath(final_video_path, start=os.path.dirname(os.path.abspath(__file__)))
-            result["processing_status"] = "completed"
-        else:
-            result["processing_status"] = "error"
-            result["processing_error"] = "Failed to generate final video"
+        # Update result
+        result["processing_status"] = "completed"
     except Exception as e:
+        # Update result with error
         result["processing_status"] = "error"
         result["processing_error"] = str(e)
 

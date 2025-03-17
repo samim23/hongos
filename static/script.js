@@ -411,4 +411,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
 	// Call this at the end of the DOMContentLoaded event handler
 	checkApiKeys();
+
+	// Handle background music volume slider
+	const volumeSlider = document.getElementById("backgroundMusicVolume");
+	const volumeValue = document.getElementById("volumeValue");
+
+	if (volumeSlider && volumeValue) {
+		volumeSlider.addEventListener("input", function () {
+			volumeValue.textContent = this.value;
+		});
+	}
 });

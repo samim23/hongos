@@ -37,8 +37,7 @@ body {
 .header-container {
     position: relative;
     margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border);
+    padding-bottom: 0rem;
 }
 
 h1 {
@@ -507,4 +506,43 @@ video {
 
 #customVoiceContainer {
     margin-top: 0.5rem;
+}
+
+/* Background music controls */
+.music-help-text {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+}
+
+.volume-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+#backgroundMusicVolume {
+    flex-grow: 1;
+    accent-color: var(--primary);
+}
+
+#volumeValue {
+    font-weight: 500;
+    min-width: 2rem;
+    text-align: center;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    transition: var(--transition);
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }

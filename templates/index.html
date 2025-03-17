@@ -15,7 +15,7 @@
 		<div class="container">
 			<header class="header-container">
 				<h1>HONGOS</h1>
-				<h2>AI Story Video Generator</h2>
+				<!-- <h2>AI Story Video Generator</h2> -->
 				<button id="configBtn" class="config-btn">
 					<span class="config-btn-icon"></span>
 					Config
@@ -149,6 +149,35 @@ A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY 
 								>
 							</div>
 						</div>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="backgroundMusic">Background Music (Optional):</label>
+					<input
+						type="text"
+						id="backgroundMusic"
+						name="background_music"
+						placeholder="YouTube URL or video ID"
+					/>
+					<div class="music-help-text">
+						Enter a YouTube URL or video ID for background music
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="backgroundMusicVolume">Background Music Volume:</label>
+					<div class="volume-slider-container">
+						<input
+							type="range"
+							id="backgroundMusicVolume"
+							name="background_music_volume"
+							min="0"
+							max="1"
+							step="0.1"
+							value="0.5"
+						/>
+						<span id="volumeValue">0.5</span>
 					</div>
 				</div>
 
