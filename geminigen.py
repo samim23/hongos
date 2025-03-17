@@ -463,7 +463,7 @@ async def async_main(generate_videos=False):
     # Define prompt with enhanced instructions for character information
     prompt = """GENERATE (do not describe) a sequence of 5-8 actual images.
     Each image should be a frame in a TV ad for a mushroom supplement company.
-    Make it ULTRA FUNNY and absurd in a Pedro Almodóvar style.
+    Make it ULTRA FUNNY and absurd in a Hayao Miyazaki style.
     Each generated image should be a different scene.
     
     IMPORTANT: For each image, please provide:

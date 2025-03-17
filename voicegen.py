@@ -124,6 +124,23 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
     # Log the total number of scenes
     log.info(f"Generating audio for {len(scenes_data)} scenes")
     
+    # First, ensure all scenes have correct frame numbers
+    # This is critical - we need to explicitly set frame_number for each scene
+    # starting from 0 and incrementing by 1
+    for i, scene in enumerate(scenes_data):
+        scene["frame_number"] = i
+        log.info(f"Set frame_number={i} for scene {i+1}")
+    
+    # Delete any existing audio files to prevent numbering conflicts
+    if os.path.exists(audio_dir):
+        for file in os.listdir(audio_dir):
+            if file.endswith(".mp3"):
+                try:
+                    os.remove(os.path.join(audio_dir, file))
+                    log.info(f"Removed existing audio file: {file}")
+                except Exception as e:
+                    log.warning(f"Could not remove file {file}: {str(e)}")
+    
     # Process each scene
     for i, scene in enumerate(scenes_data):
         log.info(f"Processing scene {i}: {scene.get('caption', 'No caption')[:30]}...")
@@ -145,10 +162,9 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
                 api_key=api_key
             )
             
-            # Update scene data with audio path and ensure frame_number is set
+            # Update scene data with audio path
             if result_path:
                 scene["audio_path"] = result_path
-                scene["frame_number"] = frame_num  # Ensure frame_number is set correctly
                 log.info(f"Successfully generated audio for frame {frame_num}")
             else:
                 log.warning(f"Failed to generate audio for frame {frame_num}")
@@ -156,7 +172,7 @@ def generate_voices_for_scenes(scenes_data, output_dir, api_key=None):
             log.warning(f"No caption found for scene {i}, skipping audio generation")
     
     # Verify all frames have audio
-    frame_count = max([scene.get("frame_number", i) for i, scene in enumerate(scenes_data)]) + 1
+    frame_count = len(scenes_data)
     log.info(f"Expected {frame_count} audio files")
     
     # Check if all expected audio files exist
