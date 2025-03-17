@@ -6,6 +6,14 @@ document.addEventListener("DOMContentLoaded", function () {
 	const resultsContainer = document.getElementById("resultsContainer");
 	const errorContainer = document.getElementById("errorContainer");
 	const errorText = document.getElementById("errorText");
+	const configBtn = document.getElementById("configBtn");
+	const configPanel = document.getElementById("configPanel");
+	const geminiApiKeyInput = document.getElementById("geminiApiKey");
+	const falApiKeyInput = document.getElementById("falApiKey");
+	const elevenLabsApiKeyInput = document.getElementById("elevenLabsApiKey");
+	const saveGeminiKeyBtn = document.getElementById("saveGeminiKey");
+	const saveFalKeyBtn = document.getElementById("saveFalKey");
+	const saveElevenLabsKeyBtn = document.getElementById("saveElevenLabsKey");
 
 	let statusCheckInterval;
 	let currentGenerationId = null;
@@ -266,4 +274,109 @@ document.addEventListener("DOMContentLoaded", function () {
 		.catch((error) => {
 			console.error("Error loading initial results:", error);
 		});
+
+	// Toggle config panel
+	configBtn.addEventListener("click", function () {
+		configPanel.classList.toggle("visible");
+		configBtn.classList.toggle("active");
+	});
+
+	// Save API keys
+	saveGeminiKeyBtn.addEventListener("click", async function () {
+		await saveApiKey("gemini", geminiApiKeyInput.value.trim());
+	});
+
+	saveFalKeyBtn.addEventListener("click", async function () {
+		await saveApiKey("fal", falApiKeyInput.value.trim());
+	});
+
+	saveElevenLabsKeyBtn.addEventListener("click", async function () {
+		await saveApiKey("elevenlabs", elevenLabsApiKeyInput.value.trim());
+	});
+
+	async function saveApiKey(keyType, apiKey) {
+		if (!apiKey) return;
+
+		try {
+			const response = await fetch("/set-api-key", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					key_type: keyType,
+					api_key: apiKey,
+				}),
+			});
+
+			if (response.ok) {
+				alert(
+					`${
+						keyType.charAt(0).toUpperCase() + keyType.slice(1)
+					} API key saved successfully!`
+				);
+			} else {
+				alert("Failed to save API key");
+			}
+		} catch (error) {
+			alert("Error: " + error.message);
+		}
+	}
+
+	// Check if API keys are set and load current values
+	async function checkApiKeys() {
+		try {
+			const response = await fetch("/api-keys-status");
+			const data = await response.json();
+
+			// Set input values to masked versions of the keys
+			if (data.gemini_key) {
+				geminiApiKeyInput.value = maskApiKey(data.gemini_key);
+				geminiApiKeyInput.setAttribute("data-has-value", "true");
+			}
+
+			if (data.fal_key) {
+				falApiKeyInput.value = maskApiKey(data.fal_key);
+				falApiKeyInput.setAttribute("data-has-value", "true");
+			}
+
+			if (data.elevenlabs_key) {
+				elevenLabsApiKeyInput.value = maskApiKey(data.elevenlabs_key);
+				elevenLabsApiKeyInput.setAttribute("data-has-value", "true");
+			}
+
+			// Show config panel if any key is missing
+			if (
+				!data.gemini_key_set ||
+				!data.fal_key_set ||
+				!data.elevenlabs_key_set
+			) {
+				configPanel.classList.add("visible");
+				configBtn.classList.add("active");
+			}
+		} catch (error) {
+			console.error("Error checking API keys:", error);
+		}
+	}
+
+	// Helper function to mask API keys
+	function maskApiKey(key) {
+		if (!key) return "";
+		if (key.length <= 8) return "••••••••";
+		return key.substring(0, 4) + "••••••••" + key.substring(key.length - 4);
+	}
+
+	// Add focus event to clear masked values
+	[geminiApiKeyInput, falApiKeyInput, elevenLabsApiKeyInput].forEach(
+		(input) => {
+			input.addEventListener("focus", function () {
+				if (this.getAttribute("data-has-value") === "true") {
+					this.value = "";
+				}
+			});
+		}
+	);
+
+	// Call this at the end of the DOMContentLoaded event handler
+	checkApiKeys();
 });

@@ -1,7 +1,7 @@
 import os
 import asyncio
 import uvicorn
-from fastapi import FastAPI, Request, Form, BackgroundTasks
+from fastapi import FastAPI, Request, Form, BackgroundTasks, Body
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -134,6 +134,41 @@ async def run_folder_processing(result):
 @app.get("/status")
 async def get_status():
     return generation_results
+
+@app.get("/api-keys-status")
+async def get_api_keys_status():
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    fal_key = os.environ.get("FAL_KEY", "")
+    elevenlabs_key = os.environ.get("ELEVENLABS_API_KEY", "")
+    
+    return {
+        "gemini_key_set": bool(gemini_key),
+        "fal_key_set": bool(fal_key),
+        "elevenlabs_key_set": bool(elevenlabs_key),
+        "gemini_key": gemini_key if gemini_key else "",
+        "fal_key": fal_key if fal_key else "",
+        "elevenlabs_key": elevenlabs_key if elevenlabs_key else ""
+    }
+
+@app.post("/set-api-key")
+async def set_api_key(data: dict = Body(...)):
+    key_type = data.get("key_type")
+    api_key = data.get("api_key")
+    
+    if not key_type or not api_key:
+        return JSONResponse(status_code=400, content={"error": "Missing key_type or api_key"})
+    
+    if key_type == "gemini":
+        os.environ["GEMINI_API_KEY"] = api_key
+        return {"status": "success", "message": "Gemini API key set successfully"}
+    elif key_type == "fal":
+        os.environ["FAL_KEY"] = api_key
+        return {"status": "success", "message": "FAL API key set successfully"}
+    elif key_type == "elevenlabs":
+        os.environ["ELEVENLABS_API_KEY"] = api_key
+        return {"status": "success", "message": "ElevenLabs API key set successfully"}
+    else:
+        return JSONResponse(status_code=400, content={"error": "Invalid key_type"})
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
