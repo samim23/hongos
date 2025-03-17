@@ -510,7 +510,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir):
         log.error(f"Error combining videos: {str(e)}")
         return None
 
-async def async_main(generate_videos=False, custom_description=None, sequence_amount=5):
+async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB"):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -603,7 +603,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
             
             # Generate voice for each scene
             log.info("Generating voice audio for scenes...")
-            scenes_info = generate_voices_for_scenes(scenes_info, output_dir)
+            scenes_info = generate_voices_for_scenes(scenes_info, output_dir, voice_id)
             
             # Save scenes data to JSON file
             json_path = os.path.join(output_dir, "scenes_data.json")
@@ -674,7 +674,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
 
-async def process_existing_folder(folder_path):
+async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB"):
     """Process an existing output folder to generate videos."""
     log.info(f"Processing existing folder: {folder_path}")
     
@@ -794,16 +794,18 @@ def main():
                         help="Custom prompt description (replaces the default ad description)")
     parser.add_argument("--sequence-amount", type=int, default=5,
                         help="Number of frames to generate in the sequence (default: 5)")
+    parser.add_argument("--voice-id", type=str, default="pNInz6obpgDQGcFmaJgB",
+                        help="ElevenLabs voice ID to use for audio generation")
     
     args = parser.parse_args()
     
     if args.process_folder:
         # Process existing folder
-        asyncio.run(process_existing_folder(args.process_folder))
+        asyncio.run(process_existing_folder(args.process_folder, args.voice_id))
     else:
         # Run the normal flow with custom prompt if provided
         custom_description = args.prompt
-        asyncio.run(async_main(args.generate_videos, custom_description, args.sequence_amount))
+        asyncio.run(async_main(args.generate_videos, custom_description, args.sequence_amount, args.voice_id))
 
 if __name__ == "__main__":
     main()

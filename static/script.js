@@ -15,6 +15,38 @@ document.addEventListener("DOMContentLoaded", function () {
 	const saveFalKeyBtn = document.getElementById("saveFalKey");
 	const saveElevenLabsKeyBtn = document.getElementById("saveElevenLabsKey");
 
+	// Function to handle voice selection toggle
+	function handleVoiceSelection() {
+		const selectionType = document.getElementById("voiceSelection").value;
+		const presetContainer = document.getElementById("presetVoiceContainer");
+		const customContainer = document.getElementById("customVoiceContainer");
+
+		if (selectionType === "preset") {
+			presetContainer.classList.remove("hidden");
+			customContainer.classList.add("hidden");
+			// Enable the preset voice ID for form submission
+			document.getElementById("voiceId").setAttribute("name", "voice_id");
+			document.getElementById("customVoiceId").removeAttribute("name");
+		} else {
+			presetContainer.classList.add("hidden");
+			customContainer.classList.remove("hidden");
+			// Enable the custom voice ID for form submission
+			document.getElementById("customVoiceId").setAttribute("name", "voice_id");
+			document.getElementById("voiceId").removeAttribute("name");
+		}
+	}
+
+	// Add event listener for voice selection change
+	const voiceSelection = document.getElementById("voiceSelection");
+	if (voiceSelection) {
+		voiceSelection.addEventListener("change", function () {
+			handleVoiceSelection();
+		});
+	}
+
+	// Initialize the voice selection on page load
+	handleVoiceSelection();
+
 	let statusCheckInterval;
 	let currentGenerationId = null;
 

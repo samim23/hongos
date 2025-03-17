@@ -107,6 +107,50 @@ A TV ad for a mushroom supplements company called mushmind. Make it ULTRA FUNNY 
 					/>
 				</div>
 
+				<div class="form-group">
+					<label for="voiceSelection">Voice:</label>
+					<div class="voice-selection-container">
+						<select id="voiceSelection" name="voice_selection">
+							<option value="preset" selected>Choose a preset voice</option>
+							<option value="custom">Use custom voice ID</option>
+						</select>
+
+						<div id="presetVoiceContainer">
+							<select id="voiceId" name="voice_id">
+								<option value="pNInz6obpgDQGcFmaJgB" selected>
+									Adam (Default)
+								</option>
+								<option value="pqHfZKP75CvOlQylNhV4">Bill</option>
+								<option value="nPczCjzI2devNBz1zQrb">Brian</option>
+								<option value="9BWtsMINqrJLrRacOk9x">Aria</option>
+								<option value="Xb7hH8MSUJpSbSDYk0k2">Alice</option>
+								<option value="21m00Tcm4TlvDq8ikWAM">Rachel</option>
+								<option value="AZnzlk1XvdvUeBnXmlld">Domi</option>
+								<option value="EXAVITQu4vr4xnSDxMaL">Bella</option>
+								<option value="ErXwobaYiN019PkySvjV">Antoni</option>
+								<option value="MF3mGyEYCl7XYWbV9V6O">Elli</option>
+								<option value="TxGEqnHWrfWFTfGW9XjX">Josh</option>
+								<option value="VR6AewLTigWG4xSOukaG">Arnold</option>
+								<option value="yoZ06aMxZJJ28mfd3POQ">Sam</option>
+							</select>
+						</div>
+
+						<div id="customVoiceContainer" class="hidden">
+							<input
+								type="text"
+								id="customVoiceId"
+								placeholder="Enter ElevenLabs voice ID"
+							/>
+							<div class="voice-help-text">
+								Find your voice ID at
+								<a href="https://elevenlabs.io/voice-library" target="_blank"
+									>ElevenLabs Voice Library</a
+								>
+							</div>
+						</div>
+					</div>
+				</div>
+
 				<div class="form-group checkbox">
 					<input type="checkbox" id="generateVideos" name="generate_videos" />
 					<label for="generateVideos">Generate Videos (takes longer)</label>

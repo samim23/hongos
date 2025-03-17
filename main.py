@@ -95,7 +95,11 @@ async def run_generation(result, custom_description, sequence_amount, generate_v
         result["error"] = str(e)
 
 @app.post("/process-folder/{folder_id}")
-async def process_folder(folder_id: int, background_tasks: BackgroundTasks):
+async def process_folder(
+    folder_id: int, 
+    background_tasks: BackgroundTasks,
+    voice_id: str = Form("pNInz6obpgDQGcFmaJgB")  # Updated default to Adam
+):
     # Find the result with the given ID
     result = None
     for r in generation_results:
@@ -110,14 +114,14 @@ async def process_folder(folder_id: int, background_tasks: BackgroundTasks):
     result["processing_status"] = "running"
     
     # Run the processing in the background
-    background_tasks.add_task(run_folder_processing, result)
+    background_tasks.add_task(run_folder_processing, result, voice_id)
     
     return {"status": "processing"}
 
-async def run_folder_processing(result):
+async def run_folder_processing(result, voice_id="pNInz6obpgDQGcFmaJgB"):
     try:
         folder_path = result["output_dir"]
-        await geminigen.process_existing_folder(folder_path)
+        await geminigen.process_existing_folder(folder_path, voice_id)
         
         # Update the result with the new video path
         final_video_path = os.path.join(folder_path, "final_animation.mp4")

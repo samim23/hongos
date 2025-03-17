@@ -465,3 +465,46 @@ video {
         top: 0;
     }
 }
+
+/* Voice selection styling */
+.voice-selection-container {
+    margin-top: 0.5rem;
+}
+
+.voice-selection-container select,
+.voice-selection-container input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: white;
+    font-size: 1rem;
+    transition: var(--transition);
+    margin-bottom: 0.5rem;
+}
+
+.voice-selection-container select:focus,
+.voice-selection-container input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.voice-help-text {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+}
+
+.voice-help-text a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.voice-help-text a:hover {
+    text-decoration: underline;
+}
+
+#customVoiceContainer {
+    margin-top: 0.5rem;
+}

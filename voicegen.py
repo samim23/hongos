@@ -130,13 +130,14 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
         log.error(f"Error generating voice: {str(e)}")
         return None
 
-def generate_voices_for_scenes(scenes_data, output_dir):
+def generate_voices_for_scenes(scenes_data, output_dir, voice_id="pNInz6obpgDQGcFmaJgB"):
     """
     Generate voice files for all scenes in the data.
     
     Args:
         scenes_data (list): List of scene dictionaries
         output_dir (str): Directory to save audio files
+        voice_id (str): ElevenLabs voice ID to use
     
     Returns:
         list: Updated scenes data with audio paths
@@ -178,11 +179,12 @@ def generate_voices_for_scenes(scenes_data, output_dir):
             # Log the file being created
             log.info(f"Generating audio for frame {frame_num}: {audio_filename}")
             
-            # Generate audio
+            # Generate audio - pass the voice_id parameter
             result_path = generate_voice_for_caption(
                 caption=scene["caption"],
                 speaker=scene.get("speaker", "Narrator"),
-                output_path=audio_path
+                output_path=audio_path,
+                voice_id=voice_id
             )
             
             # Update scene data with audio path
