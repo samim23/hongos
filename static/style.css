@@ -1026,3 +1026,10 @@ input:checked + .toggle-slider:before {
         font-size: 0.8125rem;
     }
 }
+
+.optional-label {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    font-weight: normal;
+    margin-left: 0.5rem;
+}

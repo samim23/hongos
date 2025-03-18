@@ -107,7 +107,7 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 						id="sequenceAmount"
 						name="sequence_amount"
 						value="5"
-						min="3"
+						min="1"
 						max="10"
 					/>
 				</div>
@@ -139,7 +139,10 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 
 				<!-- Music Controls -->
 				<div class="form-group">
-					<div class="control-header"><span class="icon">🎵</span> Music</div>
+					<div class="control-header">
+						<span class="icon">🎵</span> Music
+						<span class="optional-label">(optional)</span>
+					</div>
 					<div class="control-row">
 						<div class="control-item">
 							<label for="backgroundMusicUrl">Music URL</label>
@@ -148,6 +151,7 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 								id="backgroundMusicUrl"
 								name="background_music_url"
 								placeholder="Enter URL to background music"
+								value="https://www.youtube.com/watch?v=jj0ChLVTpaA"
 							/>
 						</div>
 						<div class="control-item">
@@ -172,6 +176,7 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 				<div class="form-group">
 					<div class="control-header">
 						<span class="icon">🖌️</span> Start Image
+						<span class="optional-label">(optional)</span>
 					</div>
 					<div class="image-upload-container">
 						<div class="image-upload-input">
@@ -224,13 +229,11 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 									/>
 									<span class="toggle-slider"></span>
 								</label>
-								<span class="toggle-label"
-									>Generate full video (costs more credits)</span
-								>
+								<span class="toggle-label">Generate full video</span>
 							</div>
 						</div>
 						<div class="control-item" id="videoModelContainer">
-							<label for="videoModel">Video Gen Model</label>
+							<label for="videoModel">Video Model</label>
 							<select id="videoModel" name="video_model" class="styled-select">
 								<option value="fal-ai/veo2/image-to-video">veo2</option>
 								<option
@@ -260,6 +263,14 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 			<div id="errorContainer" class="hidden">
 				<h2>Error</h2>
 				<div id="errorText"></div>
+			</div>
+
+			<!-- Add this to your HTML where you want the final video to appear -->
+			<div id="finalVideoContainer" style="display: none; margin-top: 20px">
+				<h3>Full Animated Video</h3>
+				<video id="finalVideo" controls width="100%" autoplay loop>
+					Your browser does not support the video tag.
+				</video>
 			</div>
 		</div>
 

@@ -565,7 +565,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir, background_mu
         from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, CompositeAudioClip
         
         # Output video path
-        final_video_path = os.path.join(output_dir, "final_animation.mp4")
+        final_video_path = os.path.join(output_dir, "final_video.mp4")
         
         # Create clips for each video
         clips = []

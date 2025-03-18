@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function () {
 					finalVideoContainer.className = "video-container";
 
 					const finalVideoTitle = document.createElement("h3");
-					finalVideoTitle.textContent = "Animated Video";
+					finalVideoTitle.textContent = "Final Video";
 					finalVideoContainer.appendChild(finalVideoTitle);
 
 					const finalVideo = document.createElement("video");
@@ -571,4 +571,146 @@ document.addEventListener("DOMContentLoaded", function () {
 			videoModelContainer.style.display = "none";
 		}
 	});
+
+	// Function to update the UI with generation results
+	function updateUIWithResults(data) {
+		console.log("Updating UI with results:", data);
+
+		// Hide the loading indicator
+		document.getElementById("loadingIndicator").style.display = "none";
+
+		// Show the results container
+		const resultsContainer = document.getElementById("resultsContainer");
+		resultsContainer.style.display = "block";
+
+		// Update the slideshow video if available
+		if (data.video_path) {
+			const videoPath = data.video_path.replace(/^.*[\\\/]/, "");
+			const videoContainer = document.getElementById("videoContainer");
+			const videoElement = document.getElementById("generatedVideo");
+
+			// Set the video source with a timestamp to prevent caching
+			videoElement.src = `outputs/${data.output_dir
+				.split("/")
+				.pop()}/${videoPath}?t=${new Date().getTime()}`;
+			videoContainer.style.display = "block";
+
+			console.log("Updated slideshow video source:", videoElement.src);
+
+			// Show the "Generate Full Video" button if it's not already generated
+			if (!data.final_video_path) {
+				document.getElementById("generateFullVideoBtn").style.display = "block";
+			}
+		}
+
+		// Update the full video if available
+		if (data.final_video_path) {
+			const finalVideoPath = data.final_video_path.replace(/^.*[\\\/]/, "");
+			const finalVideoContainer = document.getElementById(
+				"finalVideoContainer"
+			);
+			const finalVideoElement = document.getElementById("finalVideo");
+
+			// Set the video source with a timestamp to prevent caching
+			finalVideoElement.src = `outputs/${data.output_dir
+				.split("/")
+				.pop()}/${finalVideoPath}?t=${new Date().getTime()}`;
+			finalVideoContainer.style.display = "block";
+
+			console.log("Updated final video source:", finalVideoElement.src);
+
+			// Hide the "Generate Full Video" button since we now have the full video
+			document.getElementById("generateFullVideoBtn").style.display = "none";
+		}
+
+		// Store the output directory for later use
+		currentOutputDir = data.output_dir;
+	}
+
+	// Check if the generate full video button exists
+	if (!document.getElementById("generateFullVideoBtn")) {
+		// Create the button if it doesn't exist
+		const generateBtn = document.createElement("button");
+		generateBtn.id = "generateFullVideoBtn";
+		generateBtn.className = "btn btn-primary";
+		generateBtn.textContent = "Generate Full Video";
+		generateBtn.style.display = "none";
+
+		// Find a good place to insert it (after the video container)
+		const videoContainer = document.getElementById("videoContainer");
+		if (videoContainer) {
+			videoContainer.insertAdjacentElement("afterend", generateBtn);
+		} else {
+			// If video container doesn't exist, add it to the results container
+			const resultsContainer = document.getElementById("resultsContainer");
+			if (resultsContainer) {
+				resultsContainer.appendChild(generateBtn);
+			}
+		}
+	}
+
+	// Now add the event listener, but only if the element exists
+	const generateFullVideoBtn = document.getElementById("generateFullVideoBtn");
+	if (generateFullVideoBtn) {
+		generateFullVideoBtn.addEventListener("click", function () {
+			// Your existing code for the button click event
+			if (!currentOutputDir) {
+				alert("No generation results available");
+				return;
+			}
+
+			// Show loading indicator
+			document.getElementById("loadingIndicator").style.display = "block";
+
+			// Call the API to generate the full video
+			fetch("/generate_full_video", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ output_dir: currentOutputDir }),
+			})
+				.then((response) => response.json())
+				.then((data) => {
+					// Hide loading indicator
+					document.getElementById("loadingIndicator").style.display = "none";
+
+					if (data.error) {
+						alert("Error generating full video: " + data.error);
+						return;
+					}
+
+					// Update the UI with the new full video
+					if (data.final_video_path) {
+						const finalVideoPath = data.final_video_path.replace(
+							/^.*[\\\/]/,
+							""
+						);
+						const finalVideoContainer = document.getElementById(
+							"finalVideoContainer"
+						);
+						const finalVideoElement = document.getElementById("finalVideo");
+
+						// Set the video source with a timestamp to prevent caching
+						finalVideoElement.src = `outputs/${data.output_dir
+							.split("/")
+							.pop()}/${finalVideoPath}?t=${new Date().getTime()}`;
+						finalVideoContainer.style.display = "block";
+
+						console.log("Updated final video source:", finalVideoElement.src);
+
+						// Hide the button
+						document.getElementById("generateFullVideoBtn").style.display =
+							"none";
+					}
+				})
+				.catch((error) => {
+					console.error("Error:", error);
+					document.getElementById("loadingIndicator").style.display = "none";
+					alert("Error generating full video: " + error);
+				});
+		});
+	} else {
+		console.warn("Generate Full Video button not found in the DOM");
+	}
 });
