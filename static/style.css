@@ -29,7 +29,7 @@ body {
 }
 
 .container {
-    max-width: 1000px;
+    max-width: 1800px;
     margin: 0.5rem auto;
     padding: 0 2rem;
 }
@@ -351,11 +351,6 @@ button:disabled {
 
 .hidden {
     display: none;
-}
-
-/* Results container */
-#resultsContainer {
-    margin-top: 2rem;
 }
 
 .result-item {
@@ -1063,4 +1058,63 @@ input:checked + .toggle-slider:before {
 
 .download-icon {
     font-size: 0.9rem;
+}
+
+/* Main content layout for desktop */
+.main-content {
+    display: flex;
+    gap: 2rem;
+    margin-top: 0rem;
+    max-width: 2500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.form-container {
+    flex: 0 0 40%; /* Fixed at 40% width */
+    min-width: 0; /* Prevents flex items from overflowing */
+}
+
+.results-wrapper {
+    flex: 0 0 60%; /* Fixed at 60% width */
+    min-width: 0; /* Prevents flex items from overflowing */
+    position: sticky;
+    top: 2rem; /* Keeps the results visible while scrolling */
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .main-content {
+        flex-direction: column;
+    }
+    
+    .form-container,
+    .results-wrapper {
+        flex: 1 1 100%; /* Take full width on smaller screens */
+    }
+    
+    .results-wrapper {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+        padding-right: 0;
+    }
+}
+
+/* Adjust container padding for better mobile experience */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+    
+    .main-content {
+        gap: 1rem;
+    }
+    /* Results container */
+    #resultsContainer {
+        margin-top: 2rem;
+    }
 }
