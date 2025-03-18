@@ -213,9 +213,26 @@ document.addEventListener("DOMContentLoaded", function () {
 					const videoContainer = document.createElement("div");
 					videoContainer.className = "video-container";
 
+					const videoHeader = document.createElement("div");
+					videoHeader.className = "video-header";
+
 					const videoTitle = document.createElement("h3");
 					videoTitle.textContent = "Slideshow Video";
-					videoContainer.appendChild(videoTitle);
+
+					const downloadBtn = document.createElement("button");
+					downloadBtn.className = "download-btn";
+					downloadBtn.innerHTML =
+						'<span class="download-icon">⬇️</span> Download';
+					downloadBtn.addEventListener("click", function () {
+						const videoElement = videoContainer.querySelector("video");
+						if (videoElement && videoElement.src) {
+							downloadVideo(videoElement.src, "hongos_slideshow.mp4");
+						}
+					});
+
+					videoHeader.appendChild(videoTitle);
+					videoHeader.appendChild(downloadBtn);
+					videoContainer.appendChild(videoHeader);
 
 					const video = document.createElement("video");
 					video.controls = true;
@@ -245,9 +262,29 @@ document.addEventListener("DOMContentLoaded", function () {
 					const finalVideoContainer = document.createElement("div");
 					finalVideoContainer.className = "video-container";
 
+					const finalVideoHeader = document.createElement("div");
+					finalVideoHeader.className = "video-header";
+
 					const finalVideoTitle = document.createElement("h3");
 					finalVideoTitle.textContent = "Final Video";
-					finalVideoContainer.appendChild(finalVideoTitle);
+					finalVideoHeader.appendChild(finalVideoTitle);
+
+					const downloadFinalVideoBtn = document.createElement("button");
+					downloadFinalVideoBtn.className = "download-btn";
+					downloadFinalVideoBtn.innerHTML =
+						'<span class="download-icon">⬇️</span> Download';
+					downloadFinalVideoBtn.addEventListener("click", function () {
+						const finalVideoElement =
+							finalVideoContainer.querySelector("video");
+						if (finalVideoElement && finalVideoElement.src) {
+							downloadVideo(finalVideoElement.src, "hongos_final_video.mp4");
+						} else {
+							console.error("Final video source not found");
+						}
+					});
+
+					finalVideoHeader.appendChild(downloadFinalVideoBtn);
+					finalVideoContainer.appendChild(finalVideoHeader);
 
 					const finalVideo = document.createElement("video");
 					finalVideo.controls = true;
@@ -725,4 +762,38 @@ document.addEventListener("DOMContentLoaded", function () {
 	} else {
 		console.warn("Generate Full Video button not found in the DOM");
 	}
+
+	// Function to handle video downloads
+	function downloadVideo(videoUrl, filename) {
+		// Create a temporary anchor element
+		const a = document.createElement("a");
+		a.href = videoUrl;
+		a.download = filename || "video.mp4";
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	}
+
+	// Add download button functionality for the slideshow video
+	function setupVideoDownloads() {
+		// For the final video
+		const downloadFinalVideoBtn = document.getElementById("downloadFinalVideo");
+		if (downloadFinalVideoBtn) {
+			downloadFinalVideoBtn.addEventListener("click", function () {
+				const finalVideo = document.getElementById("finalVideo");
+				if (finalVideo && finalVideo.src) {
+					downloadVideo(finalVideo.src, "hongos_final_video.mp4");
+				} else {
+					console.error("Final video source not found");
+				}
+			});
+		}
+	}
+
+	// Call this function when the DOM is loaded
+	document.addEventListener("DOMContentLoaded", function () {
+		// ... your existing code ...
+
+		setupVideoDownloads();
+	});
 });

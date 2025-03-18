@@ -267,7 +267,12 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 
 			<!-- Add this to your HTML where you want the final video to appear -->
 			<div id="finalVideoContainer" style="display: none; margin-top: 20px">
-				<h3>Full Animated Video</h3>
+				<div class="video-header">
+					<h3>Full Animated Video</h3>
+					<button id="downloadFinalVideo" class="download-btn">
+						<span class="download-icon">⬇️</span> Download
+					</button>
+				</div>
 				<video id="finalVideo" controls width="100%" autoplay loop>
 					Your browser does not support the video tag.
 				</video>

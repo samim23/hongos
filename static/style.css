@@ -1033,3 +1033,34 @@ input:checked + .toggle-slider:before {
     font-weight: normal;
     margin-left: 0.5rem;
 }
+
+/* Video header with download button */
+.video-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.download-btn {
+    background-color: #4a5568;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: background-color 0.2s;
+}
+
+.download-btn:hover {
+    background-color: #2d3748;
+}
+
+.download-icon {
+    font-size: 0.9rem;
+}
