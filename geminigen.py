@@ -598,14 +598,26 @@ def combine_generated_videos(video_paths, scenes_info, output_dir, background_mu
                 # Load audio
                 audio_clip = AudioFileClip(scenes_info[i]["audio_path"])
                 
-                # Set duration of video clip to match audio if audio is longer
-                if audio_clip.duration > video_clip.duration:
-                    video_clip = video_clip.set_duration(audio_clip.duration)
+                # Calculate the speed factor needed to match audio duration
+                original_video_duration = video_clip.duration
+                target_duration = audio_clip.duration
+                
+                if abs(original_video_duration - target_duration) > 0.1:  # Only adjust if difference is significant
+                    log.info(f"Adjusting video speed for clip {i+1}: Video duration={original_video_duration:.2f}s, Audio duration={target_duration:.2f}s")
+                    
+                    # Calculate speed factor (video_duration * speed_factor = target_duration)
+                    speed_factor = original_video_duration / target_duration
+                    
+                    # Apply speed change to video (speedx changes the speed without affecting audio)
+                    video_clip = video_clip.speedx(speed_factor)
+                    
+                    log.info(f"Applied speed factor of {speed_factor:.2f} to video clip {i+1}")
+                    log.info(f"New video duration: {video_clip.duration:.2f}s")
                 
                 # Set audio
                 video_clip = video_clip.set_audio(audio_clip)
                 
-                log.info(f"Added audio to video clip {i+1} (duration: {video_clip.duration:.2f}s)")
+                log.info(f"Added audio to video clip {i+1} (final duration: {video_clip.duration:.2f}s)")
             
             clips.append(video_clip)
             log.info(f"Added video clip {i+1} (duration: {video_clip.duration:.2f}s)")
