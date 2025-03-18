@@ -1,6 +1,6 @@
 # HONGOS - Open Source Tool for Autonomous Video Production - One Prompt Generates Script, Images, Voices, Videos & Final Edit
 
-![HONGOS UI Screenshot](https://samim.io/static/upload/Screenshot-20250318163704-1337x908.png)
+![HONGOS UI Screenshot](https://samim.io/static/upload/Screenshot-20250318170154-1724x870.png)
 
 HONGOS is an AI video production tool that generates complete video stories with coherent narrative flow and visual style end-to-end from a single text prompt in just minutes. Useful for advertising, social media, comedy, and more.
 
