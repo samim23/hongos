@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from moviepy.editor import AudioFileClip
+import tempfile
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -65,6 +66,8 @@ def download_audio_from_youtube(youtube_url, output_dir=None, output_filename="b
             youtube_url = f"https://www.youtube.com/watch?v={youtube_url}"
         
         log.info(f"Downloading audio from YouTube: {youtube_url}")
+        log.info(f"Output directory: {output_dir}")
+        log.info(f"Output filename: {output_filename}")
         
         # Create temporary directory if output_dir is not specified
         if output_dir is None:
@@ -73,6 +76,7 @@ def download_audio_from_youtube(youtube_url, output_dir=None, output_filename="b
             os.makedirs(output_dir, exist_ok=True)
         
         output_path = os.path.join(output_dir, output_filename)
+        log.info(f"Full output path: {output_path}")
         
         # Use yt-dlp to download only the audio
         command = [
@@ -90,22 +94,24 @@ def download_audio_from_youtube(youtube_url, output_dir=None, output_filename="b
         if result.returncode != 0:
             log.error(f"Error downloading audio: {result.stderr}")
             return None
-        
-        # Check if file exists
-        if not os.path.exists(output_path):
-            # yt-dlp might have added an extension, try to find the file
-            potential_files = [f for f in os.listdir(output_dir) if f.startswith(Path(output_filename).stem)]
-            if potential_files:
-                output_path = os.path.join(output_dir, potential_files[0])
+            
+        # Check if the file was actually created
+        if os.path.exists(output_path):
+            log.info(f"Successfully downloaded audio to: {output_path}")
+            return output_path
+        else:
+            # Check if yt-dlp created a file with a different extension
+            base_path = os.path.splitext(output_path)[0]
+            possible_files = [f for f in os.listdir(output_dir) if f.startswith(os.path.basename(base_path))]
+            if possible_files:
+                actual_path = os.path.join(output_dir, possible_files[0])
+                log.info(f"Found audio file with different name: {actual_path}")
+                return actual_path
             else:
-                log.error("Downloaded file not found")
+                log.error(f"No audio file found in {output_dir} after download")
                 return None
-        
-        log.info(f"Successfully downloaded audio to {output_path}")
-        return output_path
-    
     except Exception as e:
-        log.error(f"Error downloading audio from YouTube: {str(e)}")
+        log.error(f"Exception in download_audio_from_youtube: {str(e)}")
         return None
 
 def trim_audio_to_length(audio_path, target_duration, output_path=None):

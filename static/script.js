@@ -105,6 +105,18 @@ document.addEventListener("DOMContentLoaded", function () {
 			formData.append("video_model", "fal-ai/veo2/image-to-video");
 		}
 
+		// Add background music
+		const backgroundMusicUrl =
+			document.getElementById("backgroundMusicUrl").value;
+		if (backgroundMusicUrl) {
+			formData.append("background_music", backgroundMusicUrl);
+		}
+
+		formData.append(
+			"background_music_volume",
+			document.getElementById("backgroundMusicVolume").value / 100
+		);
+
 		try {
 			// Start generation
 			const response = await fetch("/generate", {

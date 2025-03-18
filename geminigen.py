@@ -408,28 +408,37 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir, background_mus
                     # Download music from YouTube
                     music_dir = os.path.join(output_dir, "music")
                     os.makedirs(music_dir, exist_ok=True)
+                    log.info(f"Downloading background music from: {background_music_url}")
                     music_path = musicgen.download_audio_from_youtube(
                         background_music_url, 
                         output_dir=music_dir
                     )
                     
-                    if music_path:
+                    log.info(f"Downloaded music path: {music_path}")
+                    
+                    if music_path and os.path.exists(music_path):
                         # Trim music to match video duration
+                        log.info(f"Trimming music to match video duration: {final_clip.duration}s")
                         trimmed_music_path = musicgen.trim_audio_to_length(
                             music_path, 
                             final_clip.duration,
                             os.path.join(music_dir, "trimmed_background.mp3")
                         )
                         
-                        if trimmed_music_path:
+                        log.info(f"Trimmed music path: {trimmed_music_path}")
+                        
+                        if trimmed_music_path and os.path.exists(trimmed_music_path):
                             # Adjust volume of background music
+                            log.info(f"Adjusting music volume to: {background_music_volume}")
                             adjusted_music_path = musicgen.adjust_audio_volume(
                                 trimmed_music_path,
                                 volume=background_music_volume,
                                 output_path=os.path.join(music_dir, "background_adjusted.mp3")
                             )
                             
-                            if adjusted_music_path:
+                            log.info(f"Adjusted music path: {adjusted_music_path}")
+                            
+                            if adjusted_music_path and os.path.exists(adjusted_music_path):
                                 # Load background music
                                 background_music = AudioFileClip(adjusted_music_path)
                                 
@@ -445,6 +454,12 @@ def create_video_with_audio(frame_paths, scenes_info, output_dir, background_mus
                                     # No original audio, just use background music
                                     final_clip = final_clip.set_audio(background_music)
                                     log.info("Set background music as video audio")
+                            else:
+                                log.error(f"Adjusted music file not found: {adjusted_music_path}")
+                        else:
+                            log.error(f"Trimmed music file not found: {trimmed_music_path}")
+                    else:
+                        log.error(f"Downloaded music file not found: {music_path}")
                 except Exception as e:
                     log.error(f"Error adding background music: {str(e)}")
                     log.info("Continuing with original audio only")
