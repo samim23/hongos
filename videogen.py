@@ -42,7 +42,7 @@ def download_video(url, output_path):
     
     return output_path
 
-async def generate_video(image_path, prompt, output_dir=None, aspect_ratio="auto", duration="5s", use_upload=True):
+async def generate_video(image_path, prompt, output_dir=None, aspect_ratio="auto", duration="5s", use_upload=True, videogen_model="fal-ai/veo2/image-to-video"):
     """
     Generate a video from a local image using FAL API
     
@@ -53,6 +53,7 @@ async def generate_video(image_path, prompt, output_dir=None, aspect_ratio="auto
         aspect_ratio: Aspect ratio of the output video (auto, 16:9, 9:16)
         duration: Duration of the output video (5s, 6s, 7s, 8s)
         use_upload: Whether to upload the image or use base64 encoding
+        videogen_model: FAL model to use for video generation (default: fal-ai/veo2/image-to-video)
     
     Returns:
         Path to the downloaded video
@@ -81,7 +82,7 @@ async def generate_video(image_path, prompt, output_dir=None, aspect_ratio="auto
     
     # Submit the request using the async API
     handler = await fal_client.submit_async(
-        "fal-ai/veo2/image-to-video",
+        videogen_model,
         arguments={
             "prompt": prompt,
             "image_url": image_url,
@@ -128,7 +129,8 @@ async def async_main(args):
             args.output_dir,
             args.aspect_ratio,
             args.duration,
-            not args.use_base64  # Invert the flag since our function uses use_upload
+            not args.use_base64,  # Invert the flag since our function uses use_upload
+            args.videogen_model
         )
         
         print(f"\nSuccess! Video saved to: {output_path}")
@@ -148,6 +150,10 @@ def main():
                         help="Duration of the output video")
     parser.add_argument("--use-base64", action="store_true", 
                         help="Use base64 encoding instead of uploading the image")
+    parser.add_argument("--videogen-model", 
+                        choices=["fal-ai/veo2/image-to-video", "fal-ai/luma-dream-machine/ray-2-flash/image-to-video"],
+                        default="fal-ai/veo2/image-to-video",
+                        help="Video generation model to use")
     
     args = parser.parse_args()
     

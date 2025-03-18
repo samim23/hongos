@@ -78,12 +78,14 @@ async def generate(
     voice_id: str = Form("pNInz6obpgDQGcFmaJgB"),
     background_music: str = Form(None),
     background_music_volume: float = Form(0.5),
-    initial_image_id: str = Form(None)
+    initial_image_id: str = Form(None),
+    video_model: str = Form("fal-ai/veo2/image-to-video")
 ):
     # Log the received parameters
     print(f"DEBUG - Received background_music: {background_music}")
     print(f"DEBUG - Received background_music_volume: {background_music_volume}")
     print(f"DEBUG - Received initial_image_id: {initial_image_id}")
+    print(f"DEBUG - Received video_model: {video_model}")
     
     # Get the initial image path if provided
     initial_image_path = None
@@ -116,7 +118,8 @@ async def generate(
         voice_id, 
         background_music, 
         background_music_volume,
-        initial_image_path
+        initial_image_path,
+        video_model
     )
     
     return {"status": "started", "id": new_result["id"]}
@@ -129,7 +132,8 @@ async def run_generation(
     voice_id,
     background_music,
     background_music_volume,
-    initial_image_path
+    initial_image_path,
+    video_model
 ):
     try:
         # Add more detailed logging
@@ -141,6 +145,7 @@ async def run_generation(
         print(f"  - background_music: {background_music}")
         print(f"  - background_music_volume: {background_music_volume}")
         print(f"  - initial_image_path: {initial_image_path}")
+        print(f"  - video_model: {video_model}")
         
         # Check if the initial image exists
         if initial_image_path:
@@ -175,7 +180,8 @@ async def run_generation(
             voice_id=voice_id,
             background_music_url=background_music,
             background_music_volume=background_music_volume,
-            initial_image_path=initial_image_path
+            initial_image_path=initial_image_path,
+            videogen_model=video_model
         )
         
         # If output_dir is None, try to find the most recent output directory

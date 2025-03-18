@@ -96,6 +96,15 @@ document.addEventListener("DOMContentLoaded", function () {
 			formData.append("initial_image_id", initialImageId);
 		}
 
+		// Add the video model selection if video generation is enabled
+		if (document.getElementById("generateVideos").checked) {
+			const videoModel = document.getElementById("videoModel").value;
+			formData.append("video_model", videoModel);
+		} else {
+			// Add default model even if videos aren't being generated
+			formData.append("video_model", "fal-ai/veo2/image-to-video");
+		}
+
 		try {
 			// Start generation
 			const response = await fetch("/generate", {
@@ -536,4 +545,30 @@ document.addEventListener("DOMContentLoaded", function () {
 				console.error("Error clearing image:", error);
 			}
 		});
+
+	// Add this to your existing JavaScript to toggle the visibility of the video model dropdown
+	document
+		.getElementById("generateVideos")
+		.addEventListener("change", function () {
+			const videoModelContainer = document.getElementById(
+				"videoModelContainer"
+			);
+			if (this.checked) {
+				videoModelContainer.style.display = "block";
+			} else {
+				videoModelContainer.style.display = "none";
+			}
+		});
+
+	// Initialize the visibility on page load
+	document.addEventListener("DOMContentLoaded", function () {
+		const generateVideos = document.getElementById("generateVideos");
+		const videoModelContainer = document.getElementById("videoModelContainer");
+
+		if (generateVideos.checked) {
+			videoModelContainer.style.display = "block";
+		} else {
+			videoModelContainer.style.display = "none";
+		}
+	});
 });

@@ -500,9 +500,20 @@ async def generate_video_prompt(client, scene_info):
         log.error(f"Error generating video prompt: {str(e)}")
         return f"Animate this scene: {scene_info['caption']}"
 
-async def generate_videos_for_frames(client, scenes_info, output_dir):
-    """Generate videos for each frame using the FAL API."""
+async def generate_videos_for_frames(client, scenes_info, output_dir, videogen_model="fal-ai/veo2/image-to-video"):
+    """Generate videos for each frame using the FAL API.
+    
+    Args:
+        client: The client for API calls
+        scenes_info: Information about each scene
+        output_dir: Directory to save output files
+        videogen_model: FAL model to use for video generation (default: fal-ai/veo2/image-to-video)
+    
+    Returns:
+        List of generated video paths
+    """
     log.info("Starting video generation for each frame...")
+    log.info(f"Using video generation model: {videogen_model}")
     
     # Create videos directory
     videos_dir = os.path.join(output_dir, "videos")
@@ -531,7 +542,8 @@ async def generate_videos_for_frames(client, scenes_info, output_dir):
                 output_dir=videos_dir,
                 aspect_ratio="16:9",
                 duration="5s",
-                use_upload=True
+                use_upload=True,
+                videogen_model=videogen_model
             )
             
             # Add video path to scene info
@@ -659,7 +671,7 @@ def combine_generated_videos(video_paths, scenes_info, output_dir, background_mu
         log.error(f"Error combining videos: {str(e)}")
         return None
 
-async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5, initial_image_path=None):
+async def async_main(generate_videos=False, custom_description=None, sequence_amount=5, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5, initial_image_path=None, videogen_model="fal-ai/veo2/image-to-video"):
     # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
@@ -736,6 +748,11 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
         with open(os.path.join(output_dir, "background_music_volume.txt"), 'w') as f:
             f.write(str(background_music_volume))
         log.info(f"Using background music from: {background_music_url} with volume: {background_music_volume}")
+    
+    # Save video model if provided
+    with open(os.path.join(output_dir, "videogen_model.txt"), 'w') as f:
+        f.write(videogen_model)
+    log.info(f"Using video generation model: {videogen_model}")
     
     try:
         # Generate frames
@@ -839,7 +856,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
             log.info("Video generation requested. Starting video generation process...")
             try:
                 # Generate videos for each frame
-                video_paths = await generate_videos_for_frames(client, scenes_info, output_dir)
+                video_paths = await generate_videos_for_frames(client, scenes_info, output_dir, videogen_model)
                 
                 # Save updated scenes data with video paths
                 with open(os.path.join(output_dir, "scenes_data_with_videos.json"), 'w') as f:
@@ -862,7 +879,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
 
-async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5):
+async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5, videogen_model="fal-ai/veo2/image-to-video"):
     """Process an existing output folder to generate videos."""
     log.info(f"Processing existing folder: {folder_path}")
     
@@ -925,6 +942,26 @@ async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", 
         with open(music_volume_path, 'w') as f:
             f.write(str(background_music_volume))
         log.info(f"Saved new background music volume: {background_music_volume}")
+    
+    # Check for existing video model
+    existing_videogen_model = "fal-ai/veo2/image-to-video"  # Default
+    videogen_model_path = os.path.join(folder_path, "videogen_model.txt")
+    if os.path.exists(videogen_model_path):
+        try:
+            with open(videogen_model_path, 'r') as f:
+                existing_videogen_model = f.read().strip()
+            log.info(f"Found existing video generation model: {existing_videogen_model}")
+        except Exception as e:
+            log.warning(f"Error reading video generation model: {str(e)}")
+    
+    # Use provided model or existing model
+    model_to_use = videogen_model if videogen_model != "fal-ai/veo2/image-to-video" else existing_videogen_model
+    
+    # If a new model is provided, save it
+    if videogen_model != "fal-ai/veo2/image-to-video" and videogen_model != existing_videogen_model:
+        with open(videogen_model_path, 'w') as f:
+            f.write(videogen_model)
+        log.info(f"Saved new video generation model: {videogen_model}")
     
     # Initialize client
     client = initialize_client(GEMINI_API_KEY)
@@ -998,7 +1035,7 @@ async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", 
     # Generate videos for each frame if requested
     try:
         # Generate videos for each frame
-        video_paths = await generate_videos_for_frames(client, scenes_info, folder_path)
+        video_paths = await generate_videos_for_frames(client, scenes_info, folder_path, model_to_use)
         
         # Save updated scenes data with video paths
         with open(os.path.join(folder_path, "scenes_data_with_videos.json"), 'w') as f:
@@ -1036,6 +1073,10 @@ def main():
                         help="Volume for background music, between 0.0 and 1.0 (default: 0.5)")
     parser.add_argument("--initial-image", type=str,
                         help="Path to an initial image to use as a starting point for generation")
+    parser.add_argument("--videogen-model", type=str, 
+                        choices=["fal-ai/veo2/image-to-video", "fal-ai/luma-dream-machine/ray-2-flash/image-to-video"],
+                        default="fal-ai/veo2/image-to-video",
+                        help="Video generation model to use (default: fal-ai/veo2/image-to-video)")
     
     args = parser.parse_args()
     
@@ -1060,7 +1101,8 @@ def main():
             args.process_folder, 
             args.voice_id, 
             args.background_music,
-            args.background_music_volume
+            args.background_music_volume,
+            args.videogen_model
         ))
     else:
         # Run the normal flow with custom prompt if provided
@@ -1072,7 +1114,8 @@ def main():
             args.voice_id, 
             args.background_music,
             args.background_music_volume,
-            initial_image_path
+            initial_image_path,
+            args.videogen_model
         ))
 
 if __name__ == "__main__":
