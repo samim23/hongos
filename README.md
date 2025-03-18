@@ -1,4 +1,4 @@
-# HONGOS - Open Source Tool for Autonomous Video Production - One Prompt Generates Script, Images, Voices, Videos & Final Edit
+# HONGOS - Autonomous Video Production Tool
 
 ![HONGOS UI Screenshot](https://samim.io/static/upload/Screenshot-20250318170154-1724x870.png)
 
