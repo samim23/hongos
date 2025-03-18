@@ -1,28 +1,24 @@
-# HONGOS - AI Story Video Generator
+# HONGOS - Open Source Tool for Autonomous Video Production - One Prompt Generates Script, Images, Voices, Videos & Final Edit
 
-![HONGOS Banner](https://i.imgur.com/placeholder.png)
+![HONGOS UI Screenshot](https://samim.io/static/upload/Screenshot-20250318163704-1337x908.png)
 
-HONGOS is an AI-powered story video generator that creates animated sequences from text prompts. It combines multiple AI technologies to generate a complete storytelling experience:
+HONGOS is an AI video production tool that generates complete video stories with coherent narrative flow and visual style end-to-end from a single text prompt in just minutes. Useful for advertising, social media, comedy, and more.
 
-1. **Text-to-Image Generation**: Creates a sequence of story frames using Google's Gemini model
-2. **Text-to-Speech Narration**: Adds voice narration for each scene using ElevenLabs
-3. **Image-to-Video Animation**: Transforms static images into fluid animations using FAL's veo2 model
+1. **Script & Image Generation**: Creates both a compelling narrative script and a sequence of story frames using Google's Gemini 2.0 Flash model
+2. **Text-to-Speech Narration**: Adds professional voice narration for each scene using ElevenLabs
+3. **Image-to-Video Animation**: Transforms static images into fluid animations using Google's veo2 or Luma's ray2 model
 4. **Background Music**: Adds YouTube music tracks to complete the experience
+5. **Final Editing**: Automatically combines all elements into a cohesive final video
+
+## ✨ Features
+
+- One-click video creation from a single text prompt
+- Use your own image as a starting point to drive the story & video style
+- Flexible usage via web interface or command line for automation
 
 ## 🎬 Examples
 
 [View Demo Video](https://youtu.be/your-demo-video)
-
-![Example Animation](https://i.imgur.com/placeholder.gif)
-
-## ✨ Features
-
-- Generate multi-frame story sequences from text prompts
-- Create animated videos from static images
-- Add professional voice narration to each scene
-- Include background music from YouTube
-- Use your own image as a starting point
-- Simple web interface for easy use
 
 ## 🚀 Quick Start
 
@@ -40,7 +36,7 @@ HONGOS is an AI-powered story video generator that creates animated sequences fr
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/hongos.git
+   git clone https://github.com/samim23/hongos.git
    cd hongos
    ```
 
@@ -50,12 +46,16 @@ HONGOS is an AI-powered story video generator that creates animated sequences fr
    pip install -r requirements.txt
    ```
 
-3. Create a `.env` file with your API keys (see `.env.example`):
+3. Set up your API keys in one of two ways:
+
+   a. Create a `.env` file with your API keys (see `.env.example`):
 
    ```bash
    cp .env.example .env
    # Edit .env with your API keys
    ```
+
+   b. Or simply enter your API keys directly in the web UI when prompted
 
 4. Run the application:
 
@@ -68,12 +68,6 @@ HONGOS is an AI-powered story video generator that creates animated sequences fr
    http://localhost:8000
    ```
 
-## 🔧 Configuration
+![HONGOS Banner](https://samim.io/static/upload/Generated_Image_March_18_2025_-_4_28PM.png.jpeg)
 
-### Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
-GEMINI_API_KEY=your_gemini_api_key
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-FAL_KEY=your_fal_api_key
+A [samim.io](https://samim.io) production. Dropping AI Computational Comedy heat since 2010 🔥
