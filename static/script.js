@@ -298,6 +298,12 @@ document.addEventListener("DOMContentLoaded", function () {
 				resultsContainer.appendChild(resultElement);
 			}
 		});
+
+		// Hide placeholder when results are available
+		const resultsPlaceholder = document.getElementById("resultsPlaceholder");
+		if (resultsPlaceholder && currentResult) {
+			resultsPlaceholder.style.display = "none";
+		}
 	}
 
 	async function processFolder(id) {

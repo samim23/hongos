@@ -168,10 +168,10 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 											name="background_music_volume"
 											min="0"
 											max="100"
-											value="60"
+											value="50"
 											class="styled-slider"
 										/>
-										<span id="volumeValue">60%</span>
+										<span id="volumeValue">50%</span>
 									</div>
 								</div>
 							</div>
@@ -262,11 +262,10 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 						</div>
 
 						<!-- Submit Button -->
-						<button type="submit" id="generateBtn">Generate Story</button>
+						<button type="submit" id="generateBtn">Generate Video</button>
 					</form>
 
 					<div id="statusContainer" class="hidden">
-						<h2>Generation Status</h2>
 						<div id="statusText">Initializing...</div>
 						<div class="spinner"></div>
 					</div>
@@ -279,7 +278,15 @@ A TV Ad for a mushroom supplements company called mushmind. Make it ultra funny 
 
 				<div class="results-wrapper">
 					<div id="resultsContainer">
-						<!-- Results will be dynamically added here -->
+						<!-- Placeholder for when no results are available -->
+						<div id="resultsPlaceholder" class="results-placeholder">
+							<div class="placeholder-icon">🎬</div>
+							<h3>Your generated videos will appear here</h3>
+							<p>
+								Fill out the form on the left and click "Generate Video" to get
+								started.
+							</p>
+						</div>
 					</div>
 
 					<!-- Add this to your HTML where you want the final video to appear -->

@@ -1,8 +1,16 @@
 outputs/
 uploads/
+videos/
 __pycache__/
 *.pyc
 *.png
 *.mp3
 *.mp4
 *.gif
+*.webm
+*.mov
+*.avi
+*.mkv
+*.flv
+*.wmv
+*.m4v
