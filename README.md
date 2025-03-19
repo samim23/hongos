@@ -16,7 +16,7 @@ HONGOS is an AI video production tool that generates complete video stories with
 - Use your own image as a starting point to drive the story & video style
 - Flexible usage via web interface or command line for automation
 
-Read more about the project [here](https://samim.io/studio/work/hongos/)
+**Read more about the project [here](https://samim.io/studio/work/hongos/)**
 
 ## 🎬 Examples
 
