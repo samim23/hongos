@@ -14,3 +14,4 @@ __pycache__/
 *.flv
 *.wmv
 *.m4v
+.env
