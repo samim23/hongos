@@ -906,7 +906,7 @@ async def async_main(generate_videos=False, custom_description=None, sequence_am
     except Exception as e:
         log.error(f"An error occurred: {str(e)}")
 
-async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5, videogen_model="fal-ai/veo2/image-to-video"):
+async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", background_music_url=None, background_music_volume=0.5, videogen_model="fal-ai/veo2/image-to-video", force_model=False):
     """Process an existing output folder to generate videos."""
     log.info(f"Processing existing folder: {folder_path}")
     
@@ -981,8 +981,12 @@ async def process_existing_folder(folder_path, voice_id="pNInz6obpgDQGcFmaJgB", 
         except Exception as e:
             log.warning(f"Error reading video generation model: {str(e)}")
     
-    # Use provided model or existing model
-    model_to_use = videogen_model if videogen_model != "fal-ai/veo2/image-to-video" else existing_videogen_model
+    # Use provided model or existing model based on force_model flag
+    if force_model and videogen_model:
+        model_to_use = videogen_model
+        log.info(f"Forcing use of specified video model: {model_to_use}")
+    else:
+        model_to_use = videogen_model if videogen_model != "fal-ai/veo2/image-to-video" else existing_videogen_model
     
     # If a new model is provided, save it
     if videogen_model != "fal-ai/veo2/image-to-video" and videogen_model != existing_videogen_model:

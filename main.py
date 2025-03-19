@@ -227,7 +227,7 @@ async def run_generation(
                 print(f"DEBUG - Found final video at {final_video_path}")
         else:
             result["status"] = "error"
-            result["error"] = "Generation failed - no output directory returned"
+            result["error"] = "Generation failed - Try again."
             print("ERROR - No output directory found or returned")
             
     except Exception as e:
@@ -241,9 +241,7 @@ async def run_generation(
 async def process_folder(
     folder_id: int, 
     background_tasks: BackgroundTasks,
-    voice_id: str = Form("pNInz6obpgDQGcFmaJgB"),  # Updated default to Adam
-    background_music: str = Form(None),
-    background_music_volume: float = Form(0.5)
+    data: dict = Body(...)
 ):
     # Find the result with the given ID
     result = None
@@ -255,11 +253,29 @@ async def process_folder(
     if not result or not result.get("output_dir") or not os.path.exists(result["output_dir"]):
         return {"status": "error", "message": "Folder not found"}
     
+    # Get parameters from the request body
+    voice_id = data.get("voice_id", "pNInz6obpgDQGcFmaJgB")
+    background_music = data.get("background_music")
+    background_music_volume = data.get("background_music_volume", 0.5)
+    video_model = data.get("video_model", "fal-ai/veo2/image-to-video")
+    force_model = data.get("force_model", False)
+    
+    print(f"DEBUG - Received video_model: {video_model}")
+    print(f"DEBUG - Received force_model: {force_model}")
+    
     # Create a processing status
     result["processing_status"] = "running"
     
     # Run the processing in the background
-    background_tasks.add_task(run_folder_processing, result, voice_id, background_music, background_music_volume)
+    background_tasks.add_task(
+        run_folder_processing, 
+        result, 
+        voice_id, 
+        background_music, 
+        background_music_volume,
+        video_model,
+        force_model
+    )
     
     return {"status": "processing"}
 
@@ -267,7 +283,9 @@ async def run_folder_processing(
     result, 
     voice_id,
     background_music,
-    background_music_volume
+    background_music_volume,
+    video_model="fal-ai/veo2/image-to-video",
+    force_model=False
 ):
     try:
         # Process the folder
@@ -275,11 +293,18 @@ async def run_folder_processing(
             result["output_dir"],
             voice_id=voice_id,
             background_music_url=background_music,
-            background_music_volume=background_music_volume
+            background_music_volume=background_music_volume,
+            videogen_model=video_model,
+            force_model=force_model
         )
         
         # Update result
         result["processing_status"] = "completed"
+        
+        # Check if final video was created
+        final_video_path = os.path.join(result["output_dir"], "final_video.mp4")
+        if os.path.exists(final_video_path):
+            result["final_video_path"] = final_video_path
     except Exception as e:
         # Update result with error
         result["processing_status"] = "error"

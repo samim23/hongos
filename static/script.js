@@ -475,6 +475,7 @@ document.addEventListener("DOMContentLoaded", function () {
 				},
 				body: JSON.stringify({
 					video_model: videoModel,
+					force_model: true, // Add this flag to force using the selected model
 				}),
 			});
 
