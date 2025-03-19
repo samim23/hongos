@@ -4,7 +4,7 @@ python-multipart==0.0.6
 jinja2==3.1.2
 google-generativeai==0.3.1
 elevenlabs==0.2.24
-fal-client==0.1.18
+fal-client==0.5.9
 pillow==10.0.1
 tqdm==4.66.1
 python-dotenv==1.0.0
