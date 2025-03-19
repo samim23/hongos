@@ -45,8 +45,11 @@ def clean_caption_text(caption):
     if not caption:
         return caption
         
+    # Remove hashtags (#word)
+    cleaned_text = re.sub(r'#\w+', '', caption)
+    
     # Remove special characters like *, _, ~, etc.
-    cleaned_text = re.sub(r'[*_~`#\[\]<>]', '', caption)
+    cleaned_text = re.sub(r'[*_~`#\[\]<>]', '', cleaned_text)
     
     # Replace multiple spaces with a single space
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
@@ -166,35 +169,55 @@ def generate_voices_for_scenes(scenes_data, output_dir, voice_id="pNInz6obpgDQGc
                 except Exception as e:
                     log.warning(f"Could not remove file {file}: {str(e)}")
     
-    # Process each scene
-    for i, scene in enumerate(scenes_data):
-        log.info(f"Processing scene {i}: {scene.get('caption', 'No caption')[:30]}...")
+    # Create a file to store all captions
+    captions_file_path = os.path.join(output_dir, "captions.txt")
+    with open(captions_file_path, 'w') as captions_file:
+        captions_file.write("# Scene Captions\n\n")
         
-        if "caption" in scene and scene["caption"]:
-            # Always use the loop index as the frame number (0-based)
-            frame_num = i
-            audio_filename = f"frame_{frame_num:03d}_audio.mp3"
-            audio_path = os.path.join(audio_dir, audio_filename)
+        # Process each scene
+        for i, scene in enumerate(scenes_data):
+            log.info(f"Processing scene {i}: {scene.get('caption', 'No caption')[:30]}...")
             
-            # Log the file being created
-            log.info(f"Generating audio for frame {frame_num}: {audio_filename}")
-            
-            # Generate audio - pass the voice_id parameter
-            result_path = generate_voice_for_caption(
-                caption=scene["caption"],
-                speaker=scene.get("speaker", "Narrator"),
-                output_path=audio_path,
-                voice_id=voice_id
-            )
-            
-            # Update scene data with audio path
-            if result_path:
-                scene["audio_path"] = result_path
-                log.info(f"Successfully generated audio for frame {frame_num}")
+            if "caption" in scene and scene["caption"]:
+                # Always use the loop index as the frame number (0-based)
+                frame_num = i
+                audio_filename = f"frame_{frame_num:03d}_audio.mp3"
+                audio_path = os.path.join(audio_dir, audio_filename)
+                
+                # Log the file being created
+                log.info(f"Generating audio for frame {frame_num}: {audio_filename}")
+                
+                # Clean the caption (including hashtag removal) before generating audio
+                original_caption = scene["caption"]
+                cleaned_caption = clean_caption_text(original_caption)
+                
+                # Write both original and cleaned captions to the captions file
+                captions_file.write(f"## Scene {i+1}\n")
+                captions_file.write(f"**Speaker:** {scene.get('speaker', 'Narrator')}\n\n")
+                captions_file.write(f"**Original:** {original_caption}\n\n")
+                captions_file.write(f"**Cleaned:** {cleaned_caption}\n\n")
+                
+                # Generate audio - pass the voice_id parameter
+                result_path = generate_voice_for_caption(
+                    caption=original_caption,
+                    speaker=scene.get("speaker", "Narrator"),
+                    output_path=audio_path,
+                    voice_id=voice_id
+                )
+                
+                # Update scene data with audio path
+                if result_path:
+                    scene["audio_path"] = result_path
+                    log.info(f"Successfully generated audio for frame {frame_num}")
+                else:
+                    log.warning(f"Failed to generate audio for frame {frame_num}")
             else:
-                log.warning(f"Failed to generate audio for frame {frame_num}")
-        else:
-            log.warning(f"No caption found for scene {i}, skipping audio generation")
+                log.warning(f"No caption found for scene {i}, skipping audio generation")
+                # Still document in captions file
+                captions_file.write(f"## Scene {i+1}\n")
+                captions_file.write("*No caption available*\n\n")
+    
+    log.info(f"Saved all captions to {captions_file_path}")
     
     # Verify all frames have audio
     frame_count = len(scenes_data)
