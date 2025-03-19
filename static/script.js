@@ -192,12 +192,51 @@ document.addEventListener("DOMContentLoaded", function () {
 	}
 
 	function updateResults(results) {
+		console.log("Updating results:", results);
+
 		// Clear existing results
 		resultsContainer.innerHTML = "";
 
 		// Add each result
 		results.forEach((result) => {
 			if (result.status === "completed") {
+				console.log(`Processing completed result #${result.id}`, result);
+
+				// Check if we need to verify final video existence
+				if (!result.final_video_path || result.final_video_path === "") {
+					// Try to check if final video exists by constructing the expected path
+					const outputDir = result.output_dir;
+					if (outputDir) {
+						const potentialFinalVideoPath = `${outputDir}/final_video.mp4`;
+						console.log(
+							`Checking for potential final video at: ${potentialFinalVideoPath}`
+						);
+
+						// Use fetch with HEAD request to check if file exists
+						fetch(`/${potentialFinalVideoPath}?t=${new Date().getTime()}`, {
+							method: "HEAD",
+						})
+							.then((response) => {
+								if (response.ok) {
+									console.log(
+										`Final video exists at ${potentialFinalVideoPath}`
+									);
+									// Update the result object
+									result.final_video_path = potentialFinalVideoPath;
+									// Re-render this specific result
+									updateSingleResult(result);
+								} else {
+									console.log(
+										`No final video found at ${potentialFinalVideoPath} (status: ${response.status})`
+									);
+								}
+							})
+							.catch((error) => {
+								console.error(`Error checking for final video: ${error}`);
+							});
+					}
+				}
+
 				const resultElement = document.createElement("div");
 				resultElement.className = "result-item";
 				resultElement.dataset.id = result.id;
@@ -210,6 +249,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 				// Add slideshow video if available
 				if (result.video_path) {
+					console.log(
+						`Adding slideshow video for #${result.id}: ${result.video_path}`
+					);
+
 					const videoContainer = document.createElement("div");
 					videoContainer.className = "video-container";
 
@@ -236,11 +279,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
 					const video = document.createElement("video");
 					video.controls = true;
-					video.src = "/" + result.video_path;
+					// Add timestamp to prevent caching
+					video.src = "/" + result.video_path + "?t=" + new Date().getTime();
 					videoContainer.appendChild(video);
 
 					// Add process button if no final video yet
 					if (!result.final_video_path) {
+						console.log(
+							`No final video for #${result.id}, adding process button`
+						);
+
 						const processBtn = document.createElement("button");
 						processBtn.className = "process-btn";
 						processBtn.textContent = "Generate Full Video";
@@ -252,6 +300,10 @@ document.addEventListener("DOMContentLoaded", function () {
 						processingStatus.className = "processing-status hidden";
 						processingStatus.id = `processing-status-${result.id}`;
 						videoContainer.appendChild(processingStatus);
+					} else {
+						console.log(
+							`Final video already exists for #${result.id}, not adding process button`
+						);
 					}
 
 					resultElement.appendChild(videoContainer);
@@ -259,8 +311,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
 				// Add final video if available
 				if (result.final_video_path) {
+					console.log(
+						`Adding final video for #${result.id}: ${result.final_video_path}`
+					);
+
 					const finalVideoContainer = document.createElement("div");
 					finalVideoContainer.className = "video-container";
+					finalVideoContainer.id = `final-video-container-${result.id}`;
 
 					const finalVideoHeader = document.createElement("div");
 					finalVideoHeader.className = "video-header";
@@ -288,7 +345,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 					const finalVideo = document.createElement("video");
 					finalVideo.controls = true;
-					finalVideo.src = "/" + result.final_video_path;
+					// Add timestamp to prevent caching
+					finalVideo.src =
+						"/" + result.final_video_path + "?t=" + new Date().getTime();
+					console.log(`Setting final video src to: ${finalVideo.src}`);
 					finalVideoContainer.appendChild(finalVideo);
 
 					resultElement.appendChild(finalVideoContainer);
@@ -301,12 +361,88 @@ document.addEventListener("DOMContentLoaded", function () {
 
 		// Hide placeholder when results are available
 		const resultsPlaceholder = document.getElementById("resultsPlaceholder");
-		if (resultsPlaceholder && currentResult) {
+		if (resultsPlaceholder && results.some((r) => r.status === "completed")) {
 			resultsPlaceholder.style.display = "none";
 		}
 	}
 
+	// Helper function to update a single result without clearing the entire container
+	function updateSingleResult(result) {
+		console.log(`Updating single result #${result.id} with final video`);
+
+		// Find the existing result element
+		const resultElement = document.querySelector(
+			`.result-item[data-id="${result.id}"]`
+		);
+		if (!resultElement) {
+			console.error(`Could not find result element for ID ${result.id}`);
+			return;
+		}
+
+		// Check if final video container already exists
+		let finalVideoContainer = document.getElementById(
+			`final-video-container-${result.id}`
+		);
+		if (finalVideoContainer) {
+			console.log(`Final video container already exists for ID ${result.id}`);
+			return;
+		}
+
+		// Create and add the final video container
+		finalVideoContainer = document.createElement("div");
+		finalVideoContainer.className = "video-container";
+		finalVideoContainer.id = `final-video-container-${result.id}`;
+
+		const finalVideoHeader = document.createElement("div");
+		finalVideoHeader.className = "video-header";
+
+		const finalVideoTitle = document.createElement("h3");
+		finalVideoTitle.textContent = "Final Video";
+		finalVideoHeader.appendChild(finalVideoTitle);
+
+		const downloadFinalVideoBtn = document.createElement("button");
+		downloadFinalVideoBtn.className = "download-btn";
+		downloadFinalVideoBtn.innerHTML =
+			'<span class="download-icon">⬇️</span> Download';
+		downloadFinalVideoBtn.addEventListener("click", function () {
+			const finalVideoElement = finalVideoContainer.querySelector("video");
+			if (finalVideoElement && finalVideoElement.src) {
+				downloadVideo(finalVideoElement.src, "hongos_final_video.mp4");
+			} else {
+				console.error("Final video source not found");
+			}
+		});
+
+		finalVideoHeader.appendChild(downloadFinalVideoBtn);
+		finalVideoContainer.appendChild(finalVideoHeader);
+
+		const finalVideo = document.createElement("video");
+		finalVideo.controls = true;
+		finalVideo.src =
+			"/" + result.final_video_path + "?t=" + new Date().getTime();
+		console.log(`Setting final video src to: ${finalVideo.src}`);
+		finalVideoContainer.appendChild(finalVideo);
+
+		resultElement.appendChild(finalVideoContainer);
+
+		// Hide the process button if it exists
+		const processBtn = resultElement.querySelector(".process-btn");
+		if (processBtn) {
+			processBtn.style.display = "none";
+		}
+
+		// Hide the processing status if it exists
+		const statusElement = document.getElementById(
+			`processing-status-${result.id}`
+		);
+		if (statusElement) {
+			statusElement.style.display = "none";
+		}
+	}
+
 	async function processFolder(id) {
+		console.log(`Starting to process folder for generation ID: ${id}`);
+
 		// Disable the button
 		const processBtn = document.querySelector(
 			`.result-item[data-id="${id}"] .process-btn`
@@ -324,23 +460,42 @@ document.addEventListener("DOMContentLoaded", function () {
 		}
 
 		try {
-			// Call the API to process the folder
+			// Get the currently selected video model
+			const videoModel = document.getElementById("videoModel").value;
+			console.log(`Using video model for processing: ${videoModel}`);
+
+			// Call the API to process the folder with the selected model
+			console.log(
+				`Calling /process-folder/${id} API with model: ${videoModel}`
+			);
 			const response = await fetch(`/process-folder/${id}`, {
 				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					video_model: videoModel,
+				}),
 			});
 
 			if (!response.ok) {
 				throw new Error(`Server error: ${response.status}`);
 			}
 
+			console.log(
+				`Process folder API call successful, starting status check interval`
+			);
+
 			// Start checking status
 			const processingCheckInterval = setInterval(async () => {
 				try {
 					const statusResponse = await fetch("/status");
 					const results = await statusResponse.json();
+					console.log(`Status check results:`, results);
 
-					// Find our result
+					// Find our current generation
 					const result = results.find((r) => r.id === id);
+					console.log(`Current result for ID ${id}:`, result);
 
 					if (!result) {
 						clearInterval(processingCheckInterval);
@@ -354,11 +509,106 @@ document.addEventListener("DOMContentLoaded", function () {
 					// Check processing status
 					if (result.processing_status === "completed") {
 						clearInterval(processingCheckInterval);
+						console.log(
+							`Processing completed for ID ${id}, final_video_path:`,
+							result.final_video_path
+						);
 
 						// Update the UI with the new results
 						updateResults(results);
+
+						// Create the final video container if it doesn't exist
+						const resultElement = document.querySelector(
+							`.result-item[data-id="${id}"]`
+						);
+						if (resultElement) {
+							console.log(`Found result element for ID ${id}`);
+
+							// Check if final video container already exists
+							let finalVideoContainer = document.getElementById(
+								`final-video-container-${id}`
+							);
+
+							if (!finalVideoContainer && result.final_video_path) {
+								console.log(`Creating new final video container for ID ${id}`);
+
+								// Create final video container
+								finalVideoContainer = document.createElement("div");
+								finalVideoContainer.className = "video-container";
+								finalVideoContainer.id = `final-video-container-${id}`;
+
+								const finalVideoHeader = document.createElement("div");
+								finalVideoHeader.className = "video-header";
+
+								const finalVideoTitle = document.createElement("h3");
+								finalVideoTitle.textContent = "Final Video";
+								finalVideoHeader.appendChild(finalVideoTitle);
+
+								const downloadFinalVideoBtn = document.createElement("button");
+								downloadFinalVideoBtn.className = "download-btn";
+								downloadFinalVideoBtn.innerHTML =
+									'<span class="download-icon">⬇️</span> Download';
+								downloadFinalVideoBtn.addEventListener("click", function () {
+									const finalVideoElement =
+										finalVideoContainer.querySelector("video");
+									if (finalVideoElement && finalVideoElement.src) {
+										downloadVideo(
+											finalVideoElement.src,
+											"hongos_final_video.mp4"
+										);
+									} else {
+										console.error("Final video source not found");
+									}
+								});
+
+								finalVideoHeader.appendChild(downloadFinalVideoBtn);
+								finalVideoContainer.appendChild(finalVideoHeader);
+
+								const finalVideo = document.createElement("video");
+								finalVideo.controls = true;
+								// Add a timestamp to prevent caching
+								finalVideo.src = `/${
+									result.final_video_path
+								}?t=${new Date().getTime()}`;
+								console.log(`Setting final video src to: ${finalVideo.src}`);
+								finalVideoContainer.appendChild(finalVideo);
+
+								// Add to result element
+								resultElement.appendChild(finalVideoContainer);
+
+								// Hide the process button and status
+								const processBtn = resultElement.querySelector(".process-btn");
+								if (processBtn) {
+									processBtn.style.display = "none";
+								}
+
+								if (statusElement) {
+									statusElement.style.display = "none";
+								}
+
+								// Scroll to the final video
+								finalVideoContainer.scrollIntoView({
+									behavior: "smooth",
+									block: "nearest",
+								});
+							} else if (finalVideoContainer) {
+								console.log(
+									`Final video container already exists for ID ${id}`
+								);
+							} else {
+								console.error(
+									`No final_video_path found in result for ID ${id}`
+								);
+							}
+						} else {
+							console.error(`Could not find result element for ID ${id}`);
+						}
 					} else if (result.processing_status === "error") {
 						clearInterval(processingCheckInterval);
+						console.error(
+							`Processing error for ID ${id}:`,
+							result.processing_error
+						);
 						if (statusElement) {
 							statusElement.textContent = `Error: ${
 								result.processing_error || "Unknown error"
@@ -369,12 +619,19 @@ document.addEventListener("DOMContentLoaded", function () {
 							processBtn.disabled = false;
 							processBtn.textContent = "Try Again";
 						}
+					} else {
+						console.log(
+							`Processing status for ID ${id}: ${
+								result.processing_status || "running"
+							}`
+						);
 					}
 				} catch (error) {
 					console.error("Error checking processing status:", error);
 				}
 			}, 2000);
 		} catch (error) {
+			console.error(`Error processing folder for ID ${id}:`, error);
 			if (statusElement) {
 				statusElement.textContent = `Error: ${error.message}`;
 				statusElement.className = "processing-status error";
