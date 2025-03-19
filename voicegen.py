@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 import os
 import logging
 import json
-from elevenlabs.client import ElevenLabs
-from elevenlabs import VoiceSettings
+from elevenlabs import generate, voices, Voice, VoiceSettings
 import re
 
 load_dotenv()
@@ -25,9 +24,10 @@ def initialize_voice_client():
             log.error("No ElevenLabs API key provided in environment variables")
             return False
         
-        # Create client
-        client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
-        return client
+        # Set the API key
+        import elevenlabs
+        elevenlabs.set_api_key(ELEVENLABS_API_KEY)
+        return True
     except Exception as e:
         log.error(f"Error initializing ElevenLabs client: {str(e)}")
         return False
@@ -75,8 +75,7 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
     
     try:
         # Initialize client
-        client = initialize_voice_client()
-        if not client:
+        if not initialize_voice_client():
             return None
         
         # Clean the caption text to remove special characters
@@ -105,26 +104,22 @@ def generate_voice_for_caption(caption, speaker, output_path, voice_id="pNInz6ob
         # Generate audio
         log.info(f"Generating audio for caption: {cleaned_caption[:50]}...")
         
-        # Generate audio using the ElevenLabs client
-        response = client.text_to_speech.convert(
-            voice_id=voice_id,
-            optimize_streaming_latency="0",
-            output_format="mp3_44100_128",
+        # Generate audio using the elevenlabs generate function
+        audio = generate(
             text=cleaned_caption,
-            model_id="eleven_monolingual_v1",
+            voice=voice_id,
+            model="eleven_monolingual_v1",
             voice_settings=VoiceSettings(
                 stability=stability,
                 similarity_boost=similarity_boost,
                 style=0.0,
-                use_speaker_boost=True,
-            ),
+                use_speaker_boost=True
+            )
         )
         
         # Save the audio file
         with open(output_path, 'wb') as f:
-            for chunk in response:
-                if chunk:
-                    f.write(chunk)
+            f.write(audio)
         
         log.info(f"Audio saved to {output_path}")
         return output_path
