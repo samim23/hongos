@@ -9,8 +9,8 @@ import asyncio
 from io import BytesIO
 from PIL import Image
 from tqdm import tqdm
-import google.generativeai as genai
-from google.generativeai import types
+from google import genai
+from google.genai import types
 import json
 import re
 from datetime import datetime
